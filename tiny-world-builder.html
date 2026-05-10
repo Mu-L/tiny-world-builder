@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>Tiny World Builder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -5886,19 +5887,32 @@
 
     async function getAccessToken() {
       const user = await Auth.getUser();
-      return user && user.token ? user.token.access_token : null;
+      if (!user) return null;
+      const m = document.cookie.match(/(?:^|; )nf_jwt=([^;]*)/);
+      if (m) return decodeURIComponent(m[1]);
+      try {
+        const stored = JSON.parse(localStorage.getItem('gotrue.user'));
+        return stored && stored.token ? stored.token.access_token : null;
+      } catch (_) { return null; }
     }
 
     async function apiCall(path, method, body) {
-      const token = await getAccessToken();
-      if (!token) return null;
-      const opts = {
-        method,
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      };
-      if (body) opts.body = JSON.stringify(body);
-      const r = await fetch(path, opts);
-      return r.json();
+      try {
+        const token = await getAccessToken();
+        if (!token) return null;
+        const opts = {
+          method,
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const r = await fetch(path, opts);
+        if (!r.ok) {
+          try { return await r.json(); } catch (_) { return { error: r.statusText || 'Request failed' }; }
+        }
+        return await r.json();
+      } catch (err) {
+        return { error: err.message || 'Network error' };
+      }
     }
 
     async function loadProfile() {
