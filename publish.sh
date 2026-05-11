@@ -21,6 +21,7 @@ Outputs:
   dist/README.md
   dist/LICENSE
   dist/assets/*.png               Screenshots/assets
+  dist/sounds/*.mp3               Music + foley used by the app
   dist/.nojekyll                  GitHub Pages compatibility
   dist/VERSION.txt                Build metadata
 
@@ -71,6 +72,13 @@ for img in tinyworld-*.png; do
   [[ -e "$img" ]] || continue
   cp "$img" "$DIST/assets/$img"
 done
+
+# Sounds — music + foley referenced by the app via sounds/<name>.mp3.
+# The page expects this exact directory at the deploy root.
+if [[ -d sounds ]]; then
+  mkdir -p "$DIST/sounds"
+  cp -R sounds/. "$DIST/sounds/"
+fi
 
 : > "$DIST/.nojekyll"
 
