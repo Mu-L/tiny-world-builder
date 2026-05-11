@@ -803,12 +803,53 @@
   .profile-section { margin-bottom: 16px; }
   .profile-section label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 500; }
   .profile-section input[type="text"],
+  .profile-section input[type="url"],
   .profile-section textarea {
     width: 100%; padding: 8px 10px;
     border: 1px solid var(--line); border-radius: 8px;
     font-family: inherit; font-size: 13px;
     background: var(--panel); color: var(--ink);
   }
+  .api-keys-list {
+    list-style: none; padding: 0; margin: 8px 0 0;
+    max-height: 180px; overflow-y: auto;
+  }
+  .api-keys-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: var(--panel);
+    font-size: 12.5px;
+  }
+  .api-keys-list .api-key-label { font-weight: 500; }
+  .api-keys-list .api-key-meta { font-size: 11px; color: var(--muted); }
+  .api-keys-list .api-key-actions { display: flex; gap: 6px; }
+  .api-keys-list .api-key-actions button {
+    background: none; border: none; cursor: pointer;
+    font-size: 12px; padding: 4px 8px; border-radius: 4px;
+    color: var(--muted);
+  }
+  .api-keys-list .api-key-actions button:hover { color: var(--ink); background: var(--line); }
+  .api-key-reveal {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #fdf7e2;
+    border: 1px solid #e3cb86;
+    border-radius: 8px;
+    font-family: 'Inter', monospace;
+    font-size: 12px;
+    color: #5a4516;
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .api-key-reveal[hidden] { display: none; }
+  .api-key-reveal strong { display: block; font-family: 'Inter', sans-serif; font-size: 12px; margin-bottom: 4px; color: #7a5d18; }
+  #api-status { font-size: 12px; color: var(--muted); flex: 1; }
+  #api-status.error { color: #b84838; }
+  #api-status.success { color: #3d7a2a; }
   .profile-section textarea { resize: vertical; min-height: 60px; }
   .profile-hint { margin-top: 4px; font-size: 11px; color: var(--muted); }
   .profile-photo-row { display: flex; align-items: center; gap: 12px; }
@@ -913,6 +954,7 @@
       <div class="tab-bar">
         <button type="button" id="tab-profile" class="active">Profile</button>
         <button type="button" id="tab-saves">My Builds</button>
+        <button type="button" id="tab-api">Developer</button>
       </div>
       <div id="panel-profile">
         <div class="profile-section">
@@ -957,6 +999,37 @@
         </div>
         <ul class="saves-list" id="saves-list"></ul>
         <div class="save-empty" id="saves-empty" hidden>No saved builds yet. Build a world and save it above.</div>
+      </div>
+      <div id="panel-api" hidden>
+        <div class="profile-section">
+          <label>API keys
+            <div class="profile-hint">Bearer tokens for external integrations. Treat them like passwords — anyone with one can drive your world.</div>
+          </label>
+          <ul class="api-keys-list" id="api-keys-list"></ul>
+          <div class="modal-foot" style="margin-top:8px;">
+            <label style="flex:1;">
+              <input type="text" id="api-key-label" placeholder="Label (e.g. zapier)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;" />
+            </label>
+            <button class="btn" id="api-key-generate" type="button">Generate key</button>
+          </div>
+          <div class="api-key-reveal" id="api-key-reveal" hidden></div>
+        </div>
+        <div class="profile-section">
+          <label>Outbound webhook URL
+            <input type="url" id="api-webhook-url" autocomplete="off" placeholder="https://example.com/hook" />
+            <div class="profile-hint">JSON-POSTed on place / erase / clear / save events. Sent with <code>Authorization: Bearer &lt;key&gt;</code>.</div>
+          </label>
+        </div>
+        <div class="profile-section">
+          <label>Inbound SSE relay URL
+            <input type="url" id="api-sse-url" autocomplete="off" placeholder="https://example.com/sse" />
+            <div class="profile-hint">EventSource the browser will subscribe to. Push commands here to drive the world from outside.</div>
+          </label>
+        </div>
+        <div class="modal-foot">
+          <span id="api-status"></span>
+          <button class="btn" id="api-save" type="button">Save</button>
+        </div>
       </div>
     </form>
   </div>
@@ -4898,6 +4971,9 @@
       });
     }
     saveState();
+    if (typeof fireWebhook === 'function') {
+      fireWebhook('cell.set', { x, z, cell: world[x][z] });
+    }
   }
 
   // Cinderella rule: only ONE pumpkin tile across the home grid is the
@@ -6082,6 +6158,7 @@
   function doReset() {
     loadInitialScene();
     resetCameraDefaults();
+    if (typeof fireWebhook === 'function') fireWebhook('world.reset', {});
   }
 
   function confirmReset() {
@@ -6121,6 +6198,7 @@
           tileDelay: (x + z) * TILE_STAGGER,
           forceTile: true,
         });
+    if (typeof fireWebhook === 'function') fireWebhook('world.clear', {});
   }
 
   // -------- render settings --------
@@ -7452,6 +7530,227 @@
     return true;
   }
 
+  // -------- API / webhooks / SSE bridge --------
+  // Stored in localStorage so anon and logged-in users both have a place
+  // to keep their config. Keys are generated client-side as v4-ish UUIDs.
+  const API_LS = 'tinyworld:api:v1';
+  const apiConfig = (function loadApiConfig() {
+    try {
+      const raw = localStorage.getItem(API_LS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          keys: Array.isArray(parsed.keys) ? parsed.keys : [],
+          webhookUrl: parsed.webhookUrl || '',
+          sseUrl: parsed.sseUrl || '',
+        };
+      }
+    } catch (_) {}
+    return { keys: [], webhookUrl: '', sseUrl: '' };
+  })();
+
+  function persistApiConfig() {
+    try { localStorage.setItem(API_LS, JSON.stringify(apiConfig)); } catch (_) {}
+  }
+
+  function generateApiKey() {
+    // RFC4122 v4-ish UUID using crypto where available.
+    const bytes = new Uint8Array(16);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+    return 'twb_' + hex.slice(0, 8) + '_' + hex.slice(8, 16) + hex.slice(16, 24) + hex.slice(24);
+  }
+
+  function pickPrimaryToken() {
+    return apiConfig.keys.length ? apiConfig.keys[0].secret : '';
+  }
+
+  // ---- outbound webhooks ----
+  // Coalesce bursts of mutations so a clear-board doesn't fire 64 webhooks.
+  let webhookQueue = [];
+  let webhookFlushTimer = null;
+  function fireWebhook(event, payload) {
+    if (!apiConfig.webhookUrl) return;
+    webhookQueue.push({ event, payload, at: Date.now() });
+    clearTimeout(webhookFlushTimer);
+    webhookFlushTimer = setTimeout(flushWebhookQueue, 120);
+  }
+  function flushWebhookQueue() {
+    if (!apiConfig.webhookUrl || !webhookQueue.length) return;
+    const events = webhookQueue.splice(0, webhookQueue.length);
+    const token = pickPrimaryToken();
+    fetch(apiConfig.webhookUrl, {
+      method: 'POST',
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        token ? { Authorization: 'Bearer ' + token } : {}
+      ),
+      body: JSON.stringify({ source: 'tiny-world-builder', events }),
+      mode: 'cors',
+      keepalive: true,
+    }).catch(err => {
+      // Fail silently — webhook downtime shouldn't kill the editor.
+      // Log so devs can find it in the console.
+      console.warn('[webhook]', err);
+    });
+  }
+
+  // ---- inbound SSE relay ----
+  let sseSource = null;
+  function connectSseRelay() {
+    if (sseSource) { try { sseSource.close(); } catch (_) {} sseSource = null; }
+    const url = apiConfig.sseUrl;
+    if (!url) return;
+    // EventSource doesn't allow custom headers — append token as a query
+    // param if there's room for one. The relay should accept either.
+    const token = pickPrimaryToken();
+    let target = url;
+    if (token) {
+      const sep = url.indexOf('?') >= 0 ? '&' : '?';
+      target = url + sep + 'token=' + encodeURIComponent(token);
+    }
+    try {
+      sseSource = new EventSource(target);
+    } catch (err) {
+      console.warn('[sse] failed to connect', err);
+      return;
+    }
+    sseSource.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        applyRemoteCommand(msg);
+      } catch (err) {
+        console.warn('[sse] bad message', err, e.data);
+      }
+    };
+    sseSource.onerror = (err) => {
+      // Browser auto-reconnects; nothing to do.
+      console.warn('[sse] error', err);
+    };
+  }
+
+  function applyRemoteCommand(msg) {
+    if (!msg || typeof msg !== 'object') return;
+    const op = msg.op || msg.event;
+    if (op === 'place' || op === 'set_cell') {
+      const { x, z, terrain, kind, floors, buildingType, fenceSide, rotationY, offsetX, offsetZ } = msg;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+      if (x < 0 || x >= GRID || z < 0 || z >= GRID) return;
+      setCell(x, z, {
+        terrain: terrain || (world[x][z] && world[x][z].terrain) || 'grass',
+        terrainFloors: world[x][z] ? terrainLevelForCell(world[x][z]) : 1,
+        kind: kind || null,
+        floors: floors || 1,
+        buildingType: buildingType || null,
+        fenceSide: fenceSide || null,
+        rotationY: rotationY || 0,
+        offsetX: offsetX || 0,
+        offsetZ: offsetZ || 0,
+      });
+    } else if (op === 'clear') {
+      doClear();
+    } else if (op === 'reset') {
+      doReset();
+    }
+  }
+
+  // ---- panel hooks ----
+  function renderApiPanel() {
+    const list = document.getElementById('api-keys-list');
+    const urlField = document.getElementById('api-webhook-url');
+    const sseField = document.getElementById('api-sse-url');
+    if (!list || !urlField || !sseField) return;
+    list.innerHTML = '';
+    if (!apiConfig.keys.length) {
+      const li = document.createElement('li');
+      li.className = 'save-empty';
+      li.style.justifyContent = 'center';
+      li.textContent = 'No keys yet. Generate one to get started.';
+      list.appendChild(li);
+    } else {
+      for (const k of apiConfig.keys) {
+        const li = document.createElement('li');
+        const left = document.createElement('div');
+        const lbl = document.createElement('div');
+        lbl.className = 'api-key-label';
+        lbl.textContent = k.label || 'Untitled key';
+        const meta = document.createElement('div');
+        meta.className = 'api-key-meta';
+        meta.textContent = 'twb_…' + k.secret.slice(-8) + ' · ' + new Date(k.created).toLocaleDateString();
+        left.appendChild(lbl);
+        left.appendChild(meta);
+        const actions = document.createElement('div');
+        actions.className = 'api-key-actions';
+        const del = document.createElement('button');
+        del.textContent = 'Revoke';
+        del.title = 'Delete this key';
+        del.addEventListener('click', () => {
+          apiConfig.keys = apiConfig.keys.filter(x => x.id !== k.id);
+          persistApiConfig();
+          renderApiPanel();
+        });
+        actions.appendChild(del);
+        li.appendChild(left);
+        li.appendChild(actions);
+        list.appendChild(li);
+      }
+    }
+    urlField.value = apiConfig.webhookUrl || '';
+    sseField.value = apiConfig.sseUrl || '';
+  }
+
+  function initApiPanel() {
+    const genBtn = document.getElementById('api-key-generate');
+    const labelInput = document.getElementById('api-key-label');
+    const reveal = document.getElementById('api-key-reveal');
+    const saveBtn = document.getElementById('api-save');
+    const urlField = document.getElementById('api-webhook-url');
+    const sseField = document.getElementById('api-sse-url');
+    const status = document.getElementById('api-status');
+    if (!genBtn || !saveBtn) return;
+    genBtn.addEventListener('click', () => {
+      const secret = generateApiKey();
+      const entry = {
+        id: Math.random().toString(36).slice(2, 10),
+        label: (labelInput.value || '').trim() || 'API key',
+        secret,
+        created: Date.now(),
+      };
+      apiConfig.keys.unshift(entry);
+      persistApiConfig();
+      labelInput.value = '';
+      reveal.hidden = false;
+      reveal.innerHTML = '';
+      const head = document.createElement('strong');
+      head.textContent = 'Copy this token now — it won’t be shown in full again.';
+      const body = document.createElement('div');
+      body.textContent = secret;
+      reveal.appendChild(head);
+      reveal.appendChild(body);
+      renderApiPanel();
+    });
+    saveBtn.addEventListener('click', () => {
+      apiConfig.webhookUrl = (urlField.value || '').trim();
+      apiConfig.sseUrl     = (sseField.value || '').trim();
+      persistApiConfig();
+      status.textContent = 'Saved.';
+      status.className = 'success';
+      setTimeout(() => { status.textContent = ''; status.className = ''; }, 1800);
+      connectSseRelay();
+    });
+  }
+
+  // Wire the API tab to its UI initialiser; expose renderApiPanel for the
+  // tab switcher.
+  window.__initApiPanel = initApiPanel;
+  window.__renderApiPanel = renderApiPanel;
+  // Connect the SSE relay (if configured) at startup so remote commands
+  // can drive even an unattended browser.
+  setTimeout(connectSseRelay, 0);
+
   function loadState() {
     let data;
     try {
@@ -7486,8 +7785,10 @@
     const closeBtn = document.getElementById('account-close');
     const tabProfile = document.getElementById('tab-profile');
     const tabSaves = document.getElementById('tab-saves');
+    const tabApi = document.getElementById('tab-api');
     const panelProfile = document.getElementById('panel-profile');
     const panelSaves = document.getElementById('panel-saves');
+    const panelApi = document.getElementById('panel-api');
     const profileUsername = document.getElementById('profile-username');
     const profileDisplayName = document.getElementById('profile-display-name');
     const profileAbout = document.getElementById('profile-about');
@@ -7507,15 +7808,20 @@
     let userBuilds = [];
 
     function showTab(tab) {
-      const isProfile = tab === 'profile';
-      tabProfile.classList.toggle('active', isProfile);
-      tabSaves.classList.toggle('active', !isProfile);
-      panelProfile.hidden = !isProfile;
-      panelSaves.hidden = isProfile;
-      if (!isProfile) loadBuilds();
+      tabProfile.classList.toggle('active', tab === 'profile');
+      tabSaves.classList.toggle('active',   tab === 'saves');
+      if (tabApi) tabApi.classList.toggle('active', tab === 'api');
+      panelProfile.hidden = tab !== 'profile';
+      panelSaves.hidden   = tab !== 'saves';
+      if (panelApi) panelApi.hidden = tab !== 'api';
+      if (tab === 'saves') loadBuilds();
+      if (tab === 'api' && typeof window.__renderApiPanel === 'function') window.__renderApiPanel();
     }
+    // Initialise the API panel handlers once per account-modal lifetime.
+    if (typeof window.__initApiPanel === 'function') window.__initApiPanel();
     tabProfile.addEventListener('click', () => showTab('profile'));
     tabSaves.addEventListener('click', () => showTab('saves'));
+    if (tabApi) tabApi.addEventListener('click', () => showTab('api'));
 
     function openModal() { modal.hidden = false; }
     function closeModal() { modal.hidden = true; }
