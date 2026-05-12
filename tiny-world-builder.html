@@ -1932,13 +1932,14 @@
     stencilBuffer: false,
   });
   if ('samples' in postTarget) {
-    // 8x MSAA on capable hardware, falls back automatically. The 8x8 grid
-    // is cheap enough that the bump is invisible in the perf profile but
-    // very visible on tile edges.
+    // 4x MSAA. 8x doubled the bandwidth on the post-on path without a
+    // visible improvement at the tile silhouettes we care about — the
+    // shader-side luminance-gated AA below handles the rest. Drop to 4x
+    // to keep the post path within the 60fps budget on lower-end GPUs.
     const maxSamples = (renderer.capabilities && typeof renderer.capabilities.maxSamples === 'number')
       ? renderer.capabilities.maxSamples
       : 4;
-    postTarget.samples = Math.min(8, Math.max(4, maxSamples));
+    postTarget.samples = Math.min(4, maxSamples);
   }
   postTarget.texture.generateMipmaps = false;
   const postScene = new THREE.Scene();
@@ -1977,9 +1978,11 @@
       'varying vec2 vUv;',
       'void main() {',
       '  vec2 texel = 1.0 / max(resolution, vec2(1.0));',
-      // Lightweight FXAA-style edge smoothing on the post-on path.
-      // Sample the four corners and the centre, weight by luminance
-      // difference so flat areas stay sharp and only edges get the blur.
+      // Lightweight FXAA-style edge smoothing on the post-on path. We use
+      // the 4 diagonal corner taps both for luminance-based edge detection
+      // and for the on-edge blur, so the shader runs 5 texture reads per
+      // pixel instead of the 9-tap variant. Flat tile interiors stay sharp
+      // (edge=0 → mix returns cc unmodified); only silhouettes get blended.
       '  vec4 cc = texture2D(tDiffuse, vUv);',
       '  vec4 ne = texture2D(tDiffuse, vUv + texel);',
       '  vec4 nw = texture2D(tDiffuse, vUv + vec2(-texel.x,  texel.y));',
@@ -1993,13 +1996,8 @@
       '  float lmin = min(lc, min(min(lne, lnw), min(lse, lsw)));',
       '  float lmax = max(lc, max(max(lne, lnw), max(lse, lsw)));',
       '  float edge = clamp((lmax - lmin) * 3.0, 0.0, 1.0);',
-      '  vec4 c = cc * 0.72;',
-      '  c += texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)) * 0.07;',
-      '  c += texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)) * 0.07;',
-      '  c += texture2D(tDiffuse, vUv + vec2(0.0, texel.y)) * 0.07;',
-      '  c += texture2D(tDiffuse, vUv - vec2(0.0, texel.y)) * 0.07;',
       '  vec4 aaSoft = (cc + ne + nw + se + sw) * 0.2;',
-      '  c = mix(c, aaSoft, edge * aaStrength);',
+      '  vec4 c = mix(cc, aaSoft, edge * aaStrength);',
       '  vec3 col = c.rgb;',
       '  float luma = dot(col, vec3(0.299, 0.587, 0.114));',
       '  col = mix(vec3(luma), col, saturation);',
@@ -4933,10 +4931,13 @@
     opacityRoots.add(group);
     group.traverse(o => {
       if (!o.isMesh || !o.material) return;
-      // Ghost meshes participate in the shadow pass — same sun, same
-      // shadows everywhere the user can see. The cells already use
-      // castReceive/groundReceiveOnly from their factories; don't
-      // override that here.
+      // Ghost-board meshes still RECEIVE shadows from the home grid, but
+      // they do not CAST. With visible-distance > 1 the ghost population
+      // easily reaches 20k meshes; casting through the directional light's
+      // shadow frustum every frame was the dominant GPU cost on lower-end
+      // hardware. The home grid still casts onto ghost surfaces, so the
+      // overall lighting reads identical at default render settings.
+      if (ghost) o.castShadow = false;
       // Array materials are vanishingly rare in this codebase, but stay safe.
       if (Array.isArray(o.material)) {
         o.material = o.material.map(m => m.clone());
@@ -5023,7 +5024,7 @@
     const step = 1 - Math.exp(-dt * 5);
     for (const root of opacityRoots) {
       const targetOpacity = root.userData.targetOpacity;
-      if (targetOpacity === undefined) continue;
+      if (targetOpacity === undefined) { opacityRoots.delete(root); continue; }
       const current = root.userData.currentOpacity === undefined ? targetOpacity : root.userData.currentOpacity;
 
       // Stagger: hold the cell at 0 until its random reveal delay
@@ -5048,7 +5049,8 @@
       }
 
       const next = current + (targetOpacity - current) * step;
-      root.userData.currentOpacity = Math.abs(next - targetOpacity) < 0.003 ? targetOpacity : next;
+      const settled = Math.abs(next - targetOpacity) < 0.003;
+      root.userData.currentOpacity = settled ? targetOpacity : next;
       applyElementOpacity(root, root.userData.currentOpacity);
 
       // Jigsaw pop: scale follows opacity from 0.6 to 1 so newly revealed
@@ -5058,6 +5060,18 @@
         const t = root.userData.currentOpacity;
         const s = 0.6 + 0.4 * t;
         if (Math.abs(root.scale.x - s) > 0.001) root.scale.setScalar(s);
+      }
+
+      // Once the fade has settled and no further work is queued, take the
+      // root out of the per-frame set. setElementOpacity will re-add it the
+      // next time the target changes. Ghost-board population can grow into
+      // the thousands; without this prune the per-frame traverse dominates
+      // the CPU budget while every cell is sitting at its rest opacity.
+      if (settled
+          && !root.userData.landing
+          && !(root.userData.revealDelay > 0)
+          && !root.userData.pendingRevealSfx) {
+        opacityRoots.delete(root);
       }
     }
   }
@@ -8651,11 +8665,138 @@
   const cropDusterMaterials = [];
   let cropDusterModel = null;
   let cropDusterTime = 0;
-  let cropDusterRoute = null;
   let cropDusterProps = [];
   const cropDustParticles = [];
   const cropDustGeo = new THREE.SphereGeometry(0.055, 6, 6);
   const cropDustMat = new THREE.MeshBasicMaterial({ color: 0xf1dda1, transparent: true, opacity: 0.42, depthWrite: false });
+
+  // -------- crop duster route / state --------
+  // The plane has a real life: it enters from beyond the home grid, runs an
+  // optimised pass that visits every crop cell, exits the area, refuels
+  // off-screen for a few seconds, then returns. Sometimes the return run
+  // skips the dusting and trails a banner instead.
+  const FLIGHT_OFFSCREEN_DIST = 26;     // how far past the world edge the plane appears from
+  const FLIGHT_DUST_SPEED = 2.45;       // m/s while spraying
+  const FLIGHT_CRUISE_SPEED = 4.4;      // m/s while transiting / banner pass
+  const FLIGHT_DUST_ALT = 2.05;
+  const FLIGHT_CRUISE_ALT = 5.6;
+  const FLIGHT_REFUEL_MIN = 6.0;
+  const FLIGHT_REFUEL_MAX = 14.0;
+  const FLIGHT_BANNER_CHANCE = 0.32;
+  const BANNER_MESSAGES = [
+    'TINY WORLD',
+    'HELLO!',
+    'NICE FARM',
+    'EAT MORE PUMPKIN',
+    'KEEP BUILDING',
+    'GO TINY',
+    'YEEHAW',
+    'HAPPY HARVEST',
+  ];
+  const cropDusterState = {
+    phase: 'idle',          // 'idle' | 'flying' | 'banner' | 'refuel-wait'
+    curve: null,
+    curveLen: 0,
+    travel: 0,
+    speed: FLIGHT_CRUISE_SPEED,
+    refuelTimer: 0,
+    variantIndex: 0,
+    isBanner: false,
+  };
+  // Scratch vectors reused per frame to avoid allocations in the hot path.
+  const _flightPos = new THREE.Vector3();
+  const _flightTan = new THREE.Vector3();
+  const _flightAhead = new THREE.Vector3();
+
+  // -------- banner streamer --------
+  // Long thin streamer that attaches to the plane's tail and trails along
+  // the direction of travel, flapping like a flag in the slipstream. White
+  // background, black text. Segments along the length feed per-frame
+  // vertex-wave animation; geometry is shifted so the leading short edge
+  // sits at local x=0 and the banner extends backward to x=-LEN.
+  const BANNER_LEN = 5.4;
+  const BANNER_HEIGHT = 0.55;
+  let bannerMesh = null;
+  let bannerCanvas = null;
+  let bannerTexture = null;
+  let bannerWire = null;
+  function ensureBanner() {
+    if (bannerMesh) return;
+    bannerCanvas = document.createElement('canvas');
+    bannerCanvas.width = 2048;
+    bannerCanvas.height = 224;
+    bannerTexture = new THREE.CanvasTexture(bannerCanvas);
+    bannerTexture.encoding = THREE.sRGBEncoding;
+    bannerTexture.anisotropy = (renderer.capabilities.getMaxAnisotropy
+      ? Math.min(8, renderer.capabilities.getMaxAnisotropy())
+      : 1);
+    const geo = new THREE.PlaneGeometry(BANNER_LEN, BANNER_HEIGHT, 36, 4);
+    // Shift so the leading edge sits at local x=0 and the banner extends
+    // along -X. Combined with rotation.y = path yaw, the banner trails
+    // straight back from the plane regardless of heading.
+    geo.translate(-BANNER_LEN / 2, 0, 0);
+    const mat = new THREE.MeshBasicMaterial({
+      map: bannerTexture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    bannerMesh = new THREE.Mesh(geo, mat);
+    bannerMesh.visible = false;
+    bannerMesh.castShadow = false;
+    bannerMesh.receiveShadow = false;
+    bannerMesh.renderOrder = 1;
+    bannerMesh.userData.basePositions = geo.attributes.position.array.slice();
+    scene.add(bannerMesh);
+
+    // Tow wire: a thin line from the plane's tail to the leading edge of
+    // the banner. Two-vertex BufferGeometry, mutated in updateCropDuster.
+    const wireGeo = new THREE.BufferGeometry();
+    wireGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    const wireMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a, transparent: false });
+    bannerWire = new THREE.Line(wireGeo, wireMat);
+    bannerWire.visible = false;
+    bannerWire.frustumCulled = false;
+    bannerWire.castShadow = false;
+    bannerWire.receiveShadow = false;
+    scene.add(bannerWire);
+  }
+  function setBannerText(text) {
+    ensureBanner();
+    const ctx = bannerCanvas.getContext('2d');
+    const W = bannerCanvas.width, H = bannerCanvas.height;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 150px ui-sans-serif, "Helvetica Neue", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, W / 2, H / 2 + 4);
+    bannerTexture.needsUpdate = true;
+  }
+  function updateBannerFlap(time) {
+    if (!bannerMesh) return;
+    const pos = bannerMesh.geometry.attributes.position;
+    const base = bannerMesh.userData.basePositions;
+    const arr = pos.array;
+    for (let i = 0; i < pos.count; i++) {
+      const j = i * 3;
+      const baseX = base[j];
+      const baseY = base[j + 1];
+      // Trailing factor: 0 at the leading edge (attached to plane),
+      // 1 at the free tip — that's where most of the flapping happens.
+      const t = Math.min(1, Math.max(0, -baseX / BANNER_LEN));
+      // Travelling sine wave along the length, gravity-style droop, and a
+      // gentle twist so top and bottom rows lag by a different phase.
+      const wave = Math.sin(baseX * 5.5 + time * 8.5) * 0.28 * t;
+      const droop = -0.22 * t * t;
+      const twist = baseY * 1.05 * Math.sin(time * 6.5 + baseX * 3.2) * t;
+      arr[j]     = baseX;
+      arr[j + 1] = baseY + droop;
+      arr[j + 2] = wave + twist * 0.18;
+    }
+    pos.needsUpdate = true;
+  }
 
   function applyCropDusterMaterial(index) {
     if (!cropDusterModel || !cropDusterMaterials.length) return;
@@ -8761,30 +8902,128 @@
     return cells;
   }
 
-  function computeCropDusterRoute() {
+  // A real crop-duster doesn't zig-zag between individual cells — it lines
+  // up on the field, descends, and makes a single straight pass that dumps
+  // on every crop in the band. Returns a Catmull-Rom curve that starts well
+  // off-grid at cruise altitude, descends gently into the row, runs flat
+  // and low across the entire crop extent, then climbs back to cruise and
+  // exits off-grid on the other side. No 90° turns.
+  let cropDusterPassAxis = 'x'; // remembered for the dust-spawn loop
+  function planDustingCurve() {
     const crops = cropCellsForDusting();
-    if (!crops.length) {
-      return {
-        startX: target.x - 9,
-        endX: target.x + 9,
-        z: target.z - 1.6,
-        cruiseY: Math.max(renderCloudHeight + 0.7, 5.2),
-        dustY: 2.2,
-        dust: false,
-      };
+    if (!crops.length) return null;
+    const dustY = FLIGHT_DUST_ALT;
+    const cruiseY = Math.max(renderCloudHeight + 0.4, FLIGHT_CRUISE_ALT);
+
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const c of crops) {
+      const p = tilePos(c.x, c.z);
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
     }
-    const xs = crops.map(c => tilePos(c.x, c.z).x);
-    const zs = crops.map(c => tilePos(c.x, c.z).z);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const avgZ = zs.reduce((a, b) => a + b, 0) / zs.length;
-    return {
-      startX: minX - 5,
-      endX: maxX + 5,
-      z: avgZ,
-      cruiseY: Math.max(renderCloudHeight + 0.7, 5.2),
-      dustY: 2.15,
-      dust: true,
-    };
+    const extentX = maxX - minX;
+    const extentZ = maxZ - minZ;
+    // Run along the longer axis so a single pass crosses the most rows.
+    const axis = extentX >= extentZ ? 'x' : 'z';
+    cropDusterPassAxis = axis;
+    // Flip the approach direction occasionally so the plane doesn't always
+    // arrive from the same corner.
+    const flip = Math.random() < 0.5 ? -1 : 1;
+
+    const lead = FLIGHT_OFFSCREEN_DIST;
+    let pts;
+    if (axis === 'x') {
+      const runZ = (minZ + maxZ) / 2;
+      const x0 = flip > 0 ? minX : maxX;
+      const x1 = flip > 0 ? maxX : minX;
+      const margin = 2.0;
+      pts = [
+        new THREE.Vector3(x0 - flip * lead, cruiseY, runZ),
+        new THREE.Vector3(x0 - flip * (lead * 0.4), cruiseY * 0.85 + dustY * 0.15, runZ),
+        new THREE.Vector3(x0 - flip * margin, dustY + 0.55, runZ),
+        new THREE.Vector3(x0, dustY, runZ),
+        new THREE.Vector3(x1, dustY, runZ),
+        new THREE.Vector3(x1 + flip * margin, dustY + 0.55, runZ),
+        new THREE.Vector3(x1 + flip * (lead * 0.4), cruiseY * 0.85 + dustY * 0.15, runZ),
+        new THREE.Vector3(x1 + flip * lead, cruiseY, runZ),
+      ];
+    } else {
+      const runX = (minX + maxX) / 2;
+      const z0 = flip > 0 ? minZ : maxZ;
+      const z1 = flip > 0 ? maxZ : minZ;
+      const margin = 2.0;
+      pts = [
+        new THREE.Vector3(runX, cruiseY, z0 - flip * lead),
+        new THREE.Vector3(runX, cruiseY * 0.85 + dustY * 0.15, z0 - flip * (lead * 0.4)),
+        new THREE.Vector3(runX, dustY + 0.55, z0 - flip * margin),
+        new THREE.Vector3(runX, dustY, z0),
+        new THREE.Vector3(runX, dustY, z1),
+        new THREE.Vector3(runX, dustY + 0.55, z1 + flip * margin),
+        new THREE.Vector3(runX, cruiseY * 0.85 + dustY * 0.15, z1 + flip * (lead * 0.4)),
+        new THREE.Vector3(runX, cruiseY, z1 + flip * lead),
+      ];
+    }
+    return new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
+  }
+
+  // High flyover used for banner runs (and as a fallback when there are no
+  // crops to dust). Always crosses the world centred on the camera.
+  function planFlyoverCurve(altBoost) {
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const baseAlt = Math.max(renderCloudHeight + 0.5, FLIGHT_CRUISE_ALT) + (altBoost || 0);
+    const z = target.z + (Math.random() - 0.5) * 4;
+    const start = new THREE.Vector3(target.x + dir * FLIGHT_OFFSCREEN_DIST, baseAlt, z);
+    const mid = new THREE.Vector3(target.x, baseAlt + 0.4, z + dir * 0.6);
+    const end = new THREE.Vector3(target.x - dir * FLIGHT_OFFSCREEN_DIST, baseAlt, z);
+    return new THREE.CatmullRomCurve3([start, mid, end], false, 'catmullrom', 0.25);
+  }
+
+  function startDustingRun() {
+    const curve = planDustingCurve() || planFlyoverCurve(0);
+    cropDusterState.curve = curve;
+    cropDusterState.curveLen = curve.getLength();
+    cropDusterState.travel = 0;
+    cropDusterState.speed = FLIGHT_DUST_SPEED;
+    cropDusterState.phase = 'flying';
+    cropDusterState.isBanner = false;
+    if (bannerMesh) bannerMesh.visible = false;
+    if (bannerWire) bannerWire.visible = false;
+    cropDusterRoot.visible = true;
+  }
+
+  function startBannerRun(text) {
+    cropDusterState.curve = planFlyoverCurve(0.6);
+    cropDusterState.curveLen = cropDusterState.curve.getLength();
+    cropDusterState.travel = 0;
+    cropDusterState.speed = FLIGHT_CRUISE_SPEED * 0.85;
+    cropDusterState.phase = 'banner';
+    cropDusterState.isBanner = true;
+    setBannerText(text);
+    bannerMesh.visible = true;
+    cropDusterRoot.visible = true;
+  }
+
+  function startRefuel() {
+    cropDusterRoot.visible = false;
+    if (bannerMesh) bannerMesh.visible = false;
+    if (bannerWire) bannerWire.visible = false;
+    cropDusterState.phase = 'refuel-wait';
+    cropDusterState.refuelTimer = FLIGHT_REFUEL_MIN
+      + Math.random() * (FLIGHT_REFUEL_MAX - FLIGHT_REFUEL_MIN);
+  }
+
+  function startNextRun() {
+    const haveCrops = cropCellsForDusting().length > 0;
+    if (!haveCrops || Math.random() < FLIGHT_BANNER_CHANCE) {
+      startBannerRun(BANNER_MESSAGES[Math.floor(Math.random() * BANNER_MESSAGES.length)]);
+    } else {
+      cropDusterState.variantIndex = (cropDusterState.variantIndex + 1)
+        % Math.max(1, cropDusterMaterials.length);
+      applyCropDusterMaterial(cropDusterState.variantIndex);
+      startDustingRun();
+    }
   }
 
   function spawnCropDust(x, y, z) {
@@ -8832,43 +9071,101 @@
     updateCropDustParticles(dt);
     if (!cropDusterModel) return;
     spinCropDusterPropeller(dt);
-    if (!cropDusterRoute || cropDusterTime > 1000) cropDusterRoute = computeCropDusterRoute();
     cropDusterTime += dt;
-    const route = cropDusterRoute;
-    const span = Math.max(1, route.endX - route.startX);
-    const speed = route.dust ? 2.25 : 3.2;
-    const loop = span / speed;
-    const u = (cropDusterTime % loop) / loop;
-    const pass = u < 0.50 ? 0 : 1;
-    const localU = pass === 0 ? u * 2 : (u - 0.5) * 2;
-    const dir = pass === 0 ? 1 : -1;
-    const x = dir > 0
-      ? route.startX + span * localU
-      : route.endX - span * localU;
 
-    // Long, shallow descent / climb. The plane is low for the middle of
-    // the pass and eases in/out instead of diving straight at the crops.
-    const lowEase = Math.max(0, Math.min(1, Math.sin(Math.PI * localU)));
-    const altitude = route.dust
-      ? route.cruiseY + (route.dustY - route.cruiseY) * lowEase
-      : route.cruiseY;
-    const slope = route.dust ? (route.dustY - route.cruiseY) * Math.PI * Math.cos(Math.PI * localU) / span * dir : 0;
-    const pitch = Math.max(-0.22, Math.min(0.22, -slope * 1.7));
-    const bank = dir * (0.42 * Math.sin(Math.PI * 2 * localU) + Math.sin(cropDusterTime * 1.7) * 0.04);
-    const yaw = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    if (cropDusterState.phase === 'idle') {
+      startNextRun();
+    }
+
+    if (cropDusterState.phase === 'refuel-wait') {
+      cropDusterState.refuelTimer -= dt;
+      if (cropDusterState.refuelTimer <= 0) startNextRun();
+      return;
+    }
+
+    const curve = cropDusterState.curve;
+    if (!curve) return;
+    cropDusterState.travel += cropDusterState.speed * dt;
+    if (cropDusterState.travel >= cropDusterState.curveLen) {
+      startRefuel();
+      return;
+    }
+
+    const u = cropDusterState.travel / cropDusterState.curveLen;
+    curve.getPointAt(u, _flightPos);
+    curve.getTangentAt(u, _flightTan);
+
+    const yaw = Math.atan2(_flightTan.x, _flightTan.z);
+    const horiz = Math.hypot(_flightTan.x, _flightTan.z);
+    const pitch = Math.max(-0.22, Math.min(0.22, Math.atan2(_flightTan.y, Math.max(0.001, horiz))));
+
+    // Bank into upcoming turns by sampling the tangent slightly ahead.
+    const uAhead = Math.min(1, u + 0.005);
+    curve.getTangentAt(uAhead, _flightAhead);
+    let dYaw = Math.atan2(_flightAhead.x, _flightAhead.z) - yaw;
+    while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+    while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+    const bank = Math.max(-0.55, Math.min(0.55, -dYaw * 16))
+      + Math.sin(cropDusterTime * 1.6) * 0.03;
+
     const bob = Math.sin(cropDusterTime * 3.0) * 0.04;
-    const z = route.z + Math.sin(cropDusterTime * 0.55) * 0.45 + dir * Math.sin(Math.PI * 2 * localU) * 0.35;
-    cropDusterRoot.position.set(x, altitude + bob, z);
+    cropDusterRoot.position.set(_flightPos.x, _flightPos.y + bob, _flightPos.z);
     cropDusterRoot.rotation.set(pitch, yaw, bank);
 
-    if (u < 0.02) {
-      cropDusterRoute = computeCropDusterRoute();
-      applyCropDusterMaterial((cropDusterRoot.userData.variantIndex || 0) + 1);
+    // Banner attached to the plane tail by a thin wire; the banner itself
+    // hangs back a wire-length, flapping in the slipstream. Leading edge
+    // sits at the wire tip so the banner trails lengthways along the path.
+    if (cropDusterState.isBanner && bannerMesh && bannerMesh.visible) {
+      const tanX = _flightTan.x, tanZ = _flightTan.z;
+      const tailOffset = 0.55;
+      const tailX = cropDusterRoot.position.x - tanX * tailOffset;
+      const tailY = cropDusterRoot.position.y - 0.05;
+      const tailZ = cropDusterRoot.position.z - tanZ * tailOffset;
+      const wireLen = 1.25;
+      const leadX = tailX - tanX * wireLen;
+      const leadY = tailY - 0.35;
+      const leadZ = tailZ - tanZ * wireLen;
+      // The geometry's long axis is local +X. The plane's forward is local
+      // +Z (yaw = atan2(tan.x, tan.z)). Subtract 90° so local -X (trailing
+      // tip) lies along world -tangent — i.e., directly behind the plane.
+      bannerMesh.position.set(leadX, leadY, leadZ);
+      bannerMesh.rotation.set(0, yaw - Math.PI / 2, 0);
+      updateBannerFlap(cropDusterTime);
+      if (bannerWire) {
+        bannerWire.visible = true;
+        const wp = bannerWire.geometry.attributes.position;
+        const arr = wp.array;
+        arr[0] = tailX; arr[1] = tailY; arr[2] = tailZ;
+        arr[3] = leadX; arr[4] = leadY; arr[5] = leadZ;
+        wp.needsUpdate = true;
+      }
+    } else if (bannerWire && bannerWire.visible) {
+      bannerWire.visible = false;
     }
-    if (route.dust && lowEase > 0.82 && isOverCropCell(cropDusterRoot.position.x, cropDusterRoot.position.z)) {
-      const trailDir = dir > 0 ? -1 : 1;
-      for (let i = 0; i < 4; i++) {
-        spawnCropDust(cropDusterRoot.position.x + trailDir * (0.45 + i * 0.12), 0.72 + Math.random() * 0.10, cropDusterRoot.position.z);
+
+    // Dust spray: during the dusting pass, spawn dust at every home-grid
+    // crop cell whose along-track coordinate is currently under the plane.
+    // Walking by cells (not just by the plane's exact xz) means a single
+    // straight pass blankets every crop in the band, regardless of how
+    // wide the field is on the perpendicular axis.
+    if (!cropDusterState.isBanner && _flightPos.y < FLIGHT_DUST_ALT + 0.55) {
+      const planeX = cropDusterRoot.position.x;
+      const planeZ = cropDusterRoot.position.z;
+      const window = 0.6;
+      for (let x = 0; x < GRID; x++) {
+        for (let z = 0; z < GRID; z++) {
+          const c = getWorldCell(x, z);
+          if (!CROP_KINDS.has(c.kind)) continue;
+          const p = tilePos(x, z);
+          const along = cropDusterPassAxis === 'x' ? p.x - planeX : p.z - planeZ;
+          if (Math.abs(along) > window) continue;
+          if (cropDustParticles.length > 220) break;
+          spawnCropDust(
+            p.x + (Math.random() - 0.5) * 0.34,
+            0.72 + Math.random() * 0.10,
+            p.z + (Math.random() - 0.5) * 0.34,
+          );
+        }
       }
     }
   }
