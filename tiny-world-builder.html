@@ -11286,9 +11286,36 @@
   }
 
   const rainSplash = makeSplashPool(120, { color: 0xb8c6d8, size: 0.22, life: 0.28, opacity: 0.55 });
-  const snowSplash = makeSplashPool(80, { color: 0xffffff, size: 0.18, life: 0.55, opacity: 0.62 });
   scene.add(rainSplash);
-  scene.add(snowSplash);
+
+  function makeSnowSurfacePool(count) {
+    const geo = new THREE.BoxGeometry(0.42, 0.012, 0.42);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.24, depthWrite: false,
+    });
+    const mesh = new THREE.InstancedMesh(geo, mat, count);
+    mesh.frustumCulled = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.visible = false;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < count; i++) mesh.setMatrixAt(i, zero);
+    mesh.count = 0;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.userData = {
+      head: 0, visibleCount: 0, maxCount: count,
+      _m: new THREE.Matrix4(),
+      _p: new THREE.Vector3(),
+      _q: new THREE.Quaternion(),
+      _s: new THREE.Vector3(),
+      _axis: new THREE.Vector3(0, 1, 0),
+    };
+    return mesh;
+  }
+
+  const snowSurface = makeSnowSurfacePool(900);
+  scene.add(snowSurface);
 
   function emitSplash(pool, x, y, z) {
     const u = pool.userData;
@@ -11299,6 +11326,24 @@
     u.ys[i] = y;
     u.zs[i] = z;
     pool.visible = true;
+  }
+
+  function emitSnowSurface(x, y, z) {
+    const u = snowSurface.userData;
+    const i = u.head;
+    u.head = (i + 1) % u.maxCount;
+    u.visibleCount = Math.min(u.maxCount, u.visibleCount + 1);
+    const jitterX = (Math.random() - 0.5) * 0.18;
+    const jitterZ = (Math.random() - 0.5) * 0.18;
+    const size = 0.45 + Math.random() * 0.45;
+    u._p.set(x + jitterX, y + 0.018, z + jitterZ);
+    u._q.setFromAxisAngle(u._axis, Math.random() * Math.PI * 2);
+    u._s.set(size, 1, size * (0.75 + Math.random() * 0.35));
+    u._m.compose(u._p, u._q, u._s);
+    snowSurface.setMatrixAt(i, u._m);
+    snowSurface.count = u.visibleCount;
+    snowSurface.visible = u.visibleCount > 0;
+    snowSurface.instanceMatrix.needsUpdate = true;
   }
 
   function tickSplashes(pool, dt) {
@@ -11418,9 +11463,8 @@
     const rainBiasX = weatherMode === 'rain' ? 0.8 : 0;
     const rainTilt = rainBiasX ? Math.atan2(rainBiasX, 14) : 0;
     tickPrecip(rainMesh, dt, rainBiasX, rainTilt, (x, y, z) => emitSplash(rainSplash, x, y, z));
-    tickPrecip(snowMesh, dt, 0, 0, (x, y, z) => emitSplash(snowSplash, x, y, z));
+    tickPrecip(snowMesh, dt, 0, 0, (x, y, z) => emitSnowSurface(x, y, z));
     tickSplashes(rainSplash, dt);
-    tickSplashes(snowSplash, dt);
   }
 
   function updateClouds(dt) {
