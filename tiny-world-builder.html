@@ -10521,8 +10521,34 @@
       // Ghost opacities are locked at 100 % — slider inputs are hidden
       // and reassigning these consts would throw. Intentionally a no-op.
       updateGhostRenderBubble();
+      applyColorFilterFallback();
       persistSettings();
       syncControls();
+    }
+
+    // When post-processing is OFF, brightness / saturation / contrast still
+    // affect the look by way of a CSS filter applied directly to the WebGL
+    // canvas. The browser does the math at compositing time, so it costs
+    // effectively nothing and doesn't need the EffectComposer pipeline.
+    // When post is ON, the shader-based pass owns the colour transform and
+    // we clear the CSS filter to avoid stacking.
+    function applyColorFilterFallback() {
+      const el = renderer && renderer.domElement;
+      if (!el) return;
+      if (postProcessingEnabled) {
+        el.style.filter = '';
+        return;
+      }
+      const b = (parseInt(brightnessEl.value, 10) || 100) / 100;
+      const s = (parseInt(saturationEl.value, 10) || 100) / 100;
+      const c = (parseInt(contrastEl.value, 10) || 100) / 100;
+      // Only set the property when the value is non-trivial; saves a small
+      // amount of compositor work in the all-neutral case.
+      if (b === 1 && s === 1 && c === 1) {
+        el.style.filter = '';
+      } else {
+        el.style.filter = 'brightness(' + b + ') saturate(' + s + ') contrast(' + c + ')';
+      }
     }
 
     openBtn.addEventListener('click', () => {
