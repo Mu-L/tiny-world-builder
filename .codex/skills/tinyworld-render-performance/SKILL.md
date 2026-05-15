@@ -32,6 +32,13 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
   animate only props/buildings/extras. Do not reintroduce tile drop-in for the
   starter board, saved-state restore, import, or generated-world base pass; the
   terrain is the stage, not part of the entrance animation.
+- If grass/water/path show tiny specks, pavers, ripples, or foam before the
+  rest of a tile visually settles, inspect `makeTile()` decals and the reveal
+  pipeline first: grass flecks, water insets/ripples/foam, and path
+  pavers/scuffs are real geometry just above the tile top. During opacity
+  reveal they can read as transient artifacts because faded materials use
+  transparent/depthWrite-off buckets, and sliced builds may briefly render
+  adjacency-sensitive path/water/shore details before the final settle pass.
 - Stats overlay (`?stats=1` or backtick key) reads `renderer.info` and reports FPS, draws, tris, geoms, mats, programs, textures, ghost-board count + queue depth. Use it to measure any rendering change.
 - Default color grade should stay neutral: brightness 1, saturation 1, contrast 1.
 - Render settings are user-adjustable and persisted in `localStorage` under `tinyworld:render:*`.

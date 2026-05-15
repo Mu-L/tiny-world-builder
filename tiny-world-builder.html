@@ -13,7 +13,7 @@
     --bg: #f4ede0;
     --panel: #ffffff;
     --ink: #2a2722;
-    --muted: #8a847a;
+    --muted: #6f695f;
     --line: #ebe3d2;
     --line-soft: #f3ecdc;
     --accent: #3a72c8;
@@ -940,7 +940,7 @@
   .flyout {
     position: fixed;
     background: rgba(255, 255, 255, 0.6);
-    padding: 6px;
+    padding: 4px 6px 6px;
     border: 1px solid rgba(255, 255, 255, 0.55);
     border-radius: 18px;
     display: flex;
@@ -1002,16 +1002,16 @@
   }
   .tool-group-btn { position: relative; }
   .flyout.tool-menu {
-    padding: 6px;
+    padding: 4px 6px 6px;
     gap: 4px;
   }
   .flyout .tool.flyout-tool {
     width: 62px;
-    height: 66px;
+    height: 60px;
     font-size: 10.5px;
-    padding: 4px 3px 6px;
+    padding: 1px 3px 5px;
     justify-content: flex-start;
-    gap: 3px;
+    gap: 1px;
   }
   .flyout .tool.flyout-tool .tool-thumb {
     width: 42px;
@@ -1387,6 +1387,63 @@
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
+  .agent-selection-properties {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .agent-selection-properties[hidden] { display: none; }
+  .selection-prop-row {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    align-items: start;
+    gap: 8px;
+  }
+  .selection-prop-label {
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    line-height: 24px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .selection-prop-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .selection-prop-chip {
+    min-height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.48);
+    color: var(--ink);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 650;
+    padding: 3px 9px;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+    transition: background 0.12s, border-color 0.12s, transform 0.08s;
+  }
+  .selection-prop-chip:hover {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(60, 130, 247, 0.24);
+  }
+  .selection-prop-chip:active { transform: translateY(1px); }
+  .selection-prop-chip.color-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .selection-prop-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    flex: 0 0 auto;
+  }
   .agent-selection-hint {
     font-size: 11px;
     color: var(--muted);
@@ -1670,9 +1727,23 @@
   }
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
-  .modal-head strong { font-size: 15px; color: var(--ink); }
+  .modal-card:not(.welcome-card) .modal-head strong {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+  .modal-copy,
+  .confirm-copy {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.52;
+  }
   .modal-close {
     background: transparent;
     border: none;
@@ -1732,11 +1803,10 @@
     border-color: rgba(255, 255, 255, 0.68);
     border-radius: 24px;
   }
-  .gen-card .modal-head { margin-bottom: 4px; }
-  .gen-card .modal-head strong { font-size: 18px; letter-spacing: -0.02em; }
+  .gen-card .modal-head { margin-bottom: 0; }
   .gen-card > label {
     gap: 8px;
-    color: rgba(42, 39, 34, 0.58);
+    color: var(--muted);
     font-size: 13px;
   }
   .gen-card textarea {
@@ -1767,7 +1837,7 @@
   }
   .gen-section-sum {
     font-size: 12px;
-    color: rgba(42,39,34,0.70);
+    color: var(--muted);
     font-variant-numeric: tabular-nums;
     padding: 4px 10px;
     border-radius: 999px;
@@ -1812,7 +1882,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: rgba(42,39,34,0.62);
+    color: var(--muted);
     transition: background 0.12s, color 0.12s, transform 0.12s;
   }
   .gen-mini:hover { background: rgba(255, 255, 255, 0.78); color: var(--ink); }
@@ -1828,7 +1898,7 @@
     align-items: center;
     gap: 14px;
     font-weight: 500;
-    color: rgba(42,39,34,0.76);
+    color: var(--muted);
     font-size: 13px;
   }
   .gen-slider-label {
@@ -1849,7 +1919,7 @@
   .gen-slider-val {
     text-align: right;
     font-variant-numeric: tabular-nums;
-    color: rgba(42,39,34,0.58);
+    color: var(--muted);
     font-size: 12.5px;
   }
   .modal-card .gen-check {
@@ -1858,7 +1928,7 @@
     align-items: center;
     gap: 12px;
     font-weight: 500;
-    color: rgba(42,39,34,0.74);
+    color: var(--muted);
     font-size: 13px;
     line-height: 1.35;
   }
@@ -1867,7 +1937,7 @@
   .gen-check .gen-hint {
     display: block;
     font-style: normal;
-    color: rgba(42,39,34,0.50);
+    color: var(--muted);
     font-size: 12px;
     margin: 2px 0 0;
   }
@@ -2467,16 +2537,7 @@
 
   .confirm-card { width: min(380px, 100%); }
   .confirm-card .modal-head strong {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: 18px;
-    letter-spacing: -0.01em;
-  }
-  .confirm-copy {
-    margin: 0;
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.5;
+    font-size: 20px;
   }
   .confirm-actions { justify-content: flex-end; gap: 8px; margin-top: 6px; }
 
@@ -3409,6 +3470,7 @@
         <strong id="account-title">My Account</strong>
         <button class="modal-close" id="account-close" title="Close">×</button>
       </div>
+      <p class="modal-copy">Manage your profile, saved builds, and external integrations.</p>
       <div class="tab-bar">
         <button type="button" id="tab-profile" class="active">Profile</button>
         <button type="button" id="tab-saves">My Builds</button>
@@ -3638,6 +3700,7 @@
         <strong id="gen-title">Generate Tiny World</strong>
         <button class="modal-close" id="gen-close" title="Close">×</button>
       </div>
+      <p class="modal-copy">Describe the world you want, then tune the generated layout before replacing the current build.</p>
 
       <label>Prompt
         <textarea id="gen-prompt" rows="3" placeholder="a small fishing village by a river, a crop field next to two cottages, rocky outcrops on edges"></textarea>
@@ -3760,6 +3823,7 @@
         <strong id="render-title">Settings</strong>
         <button class="modal-close" id="render-close" title="Close">×</button>
       </div>
+      <p class="modal-copy">Tune the screen, world preview, sky, and AI defaults for this session.</p>
       <div class="settings-layout">
         <nav class="settings-tabs" aria-label="Settings sections">
           <button type="button" class="settings-tab active" data-settings-tab="screen">Screen</button>
@@ -3918,6 +3982,7 @@
     <div class="agent-selection-preview" id="agent-selection-preview" hidden>
       <div class="agent-selection-count" id="agent-selection-count">0 tiles selected</div>
       <ul class="agent-selection-list" id="agent-selection-list"></ul>
+      <div class="agent-selection-properties" id="agent-selection-properties" hidden></div>
       <div class="agent-selection-hint">Type above and the prompt will target this selection.</div>
     </div>
     <div class="agent-messages" id="agent-messages"></div>
@@ -4845,6 +4910,62 @@
     hoverErase:new THREE.MeshBasicMaterial({ color: 0xb84838, transparent: true, opacity: 0.28, depthWrite: false }),
   };
 
+  const customMaterialCache = new Map();
+  function normalizeHexColor(value) {
+    if (typeof value !== 'string') return null;
+    const s = value.trim();
+    if (/^#[0-9a-f]{6}$/i.test(s)) return s.toLowerCase();
+    if (/^[0-9a-f]{6}$/i.test(s)) return ('#' + s).toLowerCase();
+    return null;
+  }
+  function shadeHexColor(hex, amount) {
+    const clean = normalizeHexColor(hex);
+    if (!clean) return null;
+    const n = parseInt(clean.slice(1), 16);
+    const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amount));
+    const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amount));
+    const b = Math.max(0, Math.min(255, (n & 255) + amount));
+    return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+  }
+  function customMaterial(base, hex) {
+    const clean = normalizeHexColor(hex);
+    if (!base || !base.clone || !clean) return base;
+    const key = (base.uuid || base.id || 'mat') + ':' + clean;
+    if (!customMaterialCache.has(key)) {
+      const mat = base.clone();
+      if (mat.color) mat.color.set(clean);
+      customMaterialCache.set(key, mat);
+    }
+    return customMaterialCache.get(key);
+  }
+  function normalizeAppearance(value) {
+    if (!value || typeof value !== 'object') return null;
+    const bodyColor = normalizeHexColor(value.bodyColor || value.body || value.wallColor || value.walls);
+    const topColor = normalizeHexColor(value.topColor || value.top || value.roofColor || value.roof);
+    const out = {};
+    if (bodyColor) out.bodyColor = bodyColor;
+    if (topColor) out.topColor = topColor;
+    return Object.keys(out).length ? out : null;
+  }
+  function sameAppearance(a, b) {
+    const aa = normalizeAppearance(a);
+    const bb = normalizeAppearance(b);
+    return JSON.stringify(aa || null) === JSON.stringify(bb || null);
+  }
+  function towerPaletteWithAppearance(basePalette, appearance) {
+    const a = normalizeAppearance(appearance);
+    const p = Object.assign({}, basePalette || {});
+    if (a && a.bodyColor) {
+      p.stone = customMaterial(p.stone || M.towerStone, a.bodyColor);
+      p.stoneD = customMaterial(p.stoneD || M.towerStoneD, shadeHexColor(a.bodyColor, -48));
+    }
+    if (a && a.topColor) {
+      p.roof = customMaterial(p.roof || M.towerRoof, a.topColor);
+      p.roofD = customMaterial(p.roofD || M.towerRoofD, shadeHexColor(a.topColor, -52));
+    }
+    return p;
+  }
+
   const SEASON_FOLIAGE = {
     spring: {
       grass: 0xa7cf58, grass2: 0x7fb03d, leaves: 0x86d139, leavesDk: 0x5fab26,
@@ -4983,12 +5104,14 @@
     const ox = c.offsetX || 0;
     const oz = c.offsetZ || 0;
     const hasTransform = ry || ox || oz;
-    if (c.terrain !== 'grass' || c.kind || f !== 1 || tf !== 1 || bt || fs || extras || hasTransform) {
+    const appearance = normalizeAppearance(c.appearance);
+    if (c.terrain !== 'grass' || c.kind || f !== 1 || tf !== 1 || bt || fs || extras || hasTransform || appearance) {
       const out = [x, z, c.terrain, c.kind, f, bt, tf, fs];
-      // Always push extras (or null) before the transform so positions
-      // stay stable in the tuple. Transform packed as [ry, ox, oz].
+      // Always push extras (or null) before the transform / appearance so
+      // tuple positions stay stable. Transform is [ry, ox, oz].
       out.push(extras || null);
-      if (hasTransform) out.push([ry, ox, oz]);
+      out.push(hasTransform ? [ry, ox, oz] : null);
+      if (appearance) out.push(appearance);
       return out;
     }
     return null;
@@ -8921,7 +9044,7 @@
   };
 
   function defaultCell() {
-    return { terrain: 'grass', terrainFloors: 1, kind: null, floors: 1, buildingType: null, fenceSide: null, extras: [] };
+    return { terrain: 'grass', terrainFloors: 1, kind: null, floors: 1, buildingType: null, fenceSide: null, extras: [], appearance: null };
   }
 
   function cloneExtras(extras) {
@@ -8945,6 +9068,7 @@
       rotationY: (src && src.rotationY) || 0,
       offsetX: (src && src.offsetX) || 0,
       offsetZ: (src && src.offsetZ) || 0,
+      appearance: normalizeAppearance(src && src.appearance),
     };
     if (cell.kind !== 'house') cell.buildingType = null;
     if (cell.kind !== 'fence') cell.fenceSide = null;
@@ -11363,8 +11487,9 @@
       } else if (bType === 'tower') {
         // When a tower is adjacent to another house variant, adopt that
         // variant's palette so they read as one merged structure (e.g. a
-        // tower next to a manor switches from grey stone to brick).
-        mesh = makeStoneTower(Math.max(floors, 2), getMergedBuildingPalette(x, z, 'tower'));
+        // tower next to a manor switches from grey stone to brick). Per-cell
+        // appearance then overrides body/top colours for direct editing.
+        mesh = makeStoneTower(Math.max(floors, 2), towerPaletteWithAppearance(getMergedBuildingPalette(x, z, 'tower'), cell.appearance));
       } else if (bType === 'turret') {
         mesh = makeTurret(floors);
       } else {
@@ -11535,7 +11660,7 @@
   const CROP_KINDS = new Set(['crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower']);
 
   function setCell(x, z, opts) {
-    const { terrain, terrainFloors, kind = null, floors, buildingType, fenceSide, tileDelay = 0, objectDelay = 0, animate = true, impactDust = true, forceTile = false, rotationY, offsetX, offsetZ } = opts;
+    const { terrain, terrainFloors, kind = null, floors, buildingType, fenceSide, tileDelay = 0, objectDelay = 0, animate = true, impactDust = true, forceTile = false, rotationY, offsetX, offsetZ, appearance } = opts;
     const prev = ensureWorldCell(x, z);
     const prevVehicleDrivable = isVehicleDrivableCell(prev);
     let nextTerrain = terrain || 'grass';
@@ -11581,8 +11706,12 @@
     const newRotationY = (rotationY !== undefined) ? rotationY : (kindIsNew ? 0 : (prev.rotationY || 0));
     const newOffsetX   = (offsetX   !== undefined) ? offsetX   : (kindIsNew ? 0 : (prev.offsetX   || 0));
     const newOffsetZ   = (offsetZ   !== undefined) ? offsetZ   : (kindIsNew ? 0 : (prev.offsetZ   || 0));
+    const newAppearance = Object.prototype.hasOwnProperty.call(opts || {}, 'appearance')
+      ? normalizeAppearance(appearance)
+      : (kindIsNew ? null : normalizeAppearance(prev.appearance));
+    const appearanceChanged = !sameAppearance(prev.appearance, newAppearance);
     const userEdited = !!(prev.userEdited || (opts && opts.userEdited));
-    world[x][z] = { terrain: nextTerrain, terrainFloors: newTerrainFloors, kind: nextKind, floors: newFloors, buildingType: newBType, fenceSide: newFenceSide, extras: carriedExtras, rotationY: newRotationY, offsetX: newOffsetX, offsetZ: newOffsetZ };
+    world[x][z] = { terrain: nextTerrain, terrainFloors: newTerrainFloors, kind: nextKind, floors: newFloors, buildingType: newBType, fenceSide: newFenceSide, extras: carriedExtras, rotationY: newRotationY, offsetX: newOffsetX, offsetZ: newOffsetZ, appearance: newAppearance };
     if (userEdited) world[x][z].userEdited = true;
     const vehicleDrivableChanged = prevVehicleDrivable !== isVehicleDrivableCell(world[x][z]);
     if (vehicleDrivableChanged) refreshVehiclesForWorldObstacleChange(x, z);
@@ -11630,7 +11759,7 @@
       }
       if (getWorldCell(x, z).kind === 'bridge') renderCellObject(x, z, { animate: false });
     }
-    if (!kindChanged && !floorsChanged && !terrainFloorsChanged && !bTypeChanged && !fenceSideChanged) {
+    if (!kindChanged && !floorsChanged && !terrainFloorsChanged && !bTypeChanged && !fenceSideChanged && !appearanceChanged) {
       if (terrainChanged || tileHeightChanged || forceTile) {
         saveState();
         emitCellWebhook();
@@ -12580,17 +12709,30 @@
     // Strip shadows — the thumb renderer has no shadow maps.
     scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 
-    // Tall objects (buildings) need a taller frustum + a higher look-at so
-    // their roofs aren't clipped. Everyone else uses the compact default.
-    const isTall = tool.kind === 'house';
-    const cam = isTall
-      ? new THREE.OrthographicCamera(-1.7, 1.7, 2.6, -1.0, 0.1, 30)
-      : new THREE.OrthographicCamera(-1.3, 1.3, 1.3, -1.3, 0.1, 30);
+    // Buildings need variant-specific framing: the skyscraper/towers need a
+    // taller frustum, but using that same crop for cottages leaves a lot of
+    // empty air above the icon in the flyout.
+    const houseType = tool.kind === 'house' && tool.activeVariant && tool.activeVariant.buildingType;
+    let thumbFrame = { left: -1.3, right: 1.3, top: 1.3, bottom: -1.3, lookAtY: 0.4 };
+    if (tool.kind === 'house') {
+      if (houseType === 'skyscraper') {
+        thumbFrame = { left: -1.7, right: 1.7, top: 2.6, bottom: -1.0, lookAtY: 1.0 };
+      } else if (houseType === 'tower' || houseType === 'turret') {
+        thumbFrame = { left: -1.58, right: 1.58, top: 2.15, bottom: -0.95, lookAtY: 0.85 };
+      } else if (houseType === 'manor') {
+        thumbFrame = { left: -1.48, right: 1.48, top: 1.9, bottom: -0.95, lookAtY: 0.68 };
+      } else {
+        thumbFrame = { left: -1.36, right: 1.36, top: 1.65, bottom: -0.95, lookAtY: 0.56 };
+      }
+    }
+    const cam = new THREE.OrthographicCamera(
+      thumbFrame.left, thumbFrame.right, thumbFrame.top, thumbFrame.bottom, 0.1, 30,
+    );
     const ctx = canvas.getContext('2d');
     const entry = {
       scene, camera: cam, canvas, ctx,
       angle: THUMB_BASE_ANGLE, baseAngle: THUMB_BASE_ANGLE, returning: false,
-      lookAtY: isTall ? 1.0 : 0.4,
+      lookAtY: thumbFrame.lookAtY,
     };
     thumbScenes.set(tool.id, entry);
     renderToolThumb(tool.id);
@@ -12946,9 +13088,11 @@
 
   function positionFlyout(btn, flyoutEl) {
     const r = btn.getBoundingClientRect();
+    const toolbarEl = btn.closest('.toolbar');
+    const dockTop = toolbarEl ? toolbarEl.getBoundingClientRect().top : r.top;
     flyoutEl.style.left   = (r.left + r.width / 2) + 'px';
     flyoutEl.style.top    = 'auto';
-    flyoutEl.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+    flyoutEl.style.bottom = (window.innerHeight - dockTop + 10) + 'px';
   }
 
   document.addEventListener('click', e => {
@@ -13554,9 +13698,79 @@
     return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   }
 
+  let copiedHoverCell = null;
+  function hoverWorldTarget(materializeGhost) {
+    if (!currentHover) return null;
+    const bx = currentHover.boardX || 0;
+    const bz = currentHover.boardZ || 0;
+    const x = currentHover.x + bx * GRID;
+    const z = currentHover.z + bz * GRID;
+    if ((bx || bz) && materializeGhost) {
+      const ghostCells = makeGhostWorld(bx, bz);
+      const ghostCell = ghostCells[currentHover.x][currentHover.z];
+      if (!world[x]) world[x] = [];
+      if (!world[x][z]) world[x][z] = { ...ghostCell, userEdited: true };
+      removeGhostCellMesh(bx, bz, currentHover.x, currentHover.z);
+    }
+    const cell = (bx || bz) && !materializeGhost
+      ? makeGhostWorld(bx, bz)[currentHover.x][currentHover.z]
+      : getWorldCell(x, z);
+    return { x, z, cell, userEdited: !!(bx || bz) };
+  }
+  function cloneCellIntent(cell) {
+    if (!cell) return null;
+    return {
+      terrain: cell.terrain || 'grass',
+      terrainFloors: terrainLevelForCell(cell),
+      kind: cell.kind || null,
+      floors: cell.floors || 1,
+      buildingType: cell.buildingType || null,
+      fenceSide: cell.fenceSide || null,
+      extras: cloneExtras(cell.extras),
+      rotationY: cell.rotationY || 0,
+      offsetX: cell.offsetX || 0,
+      offsetZ: cell.offsetZ || 0,
+      appearance: normalizeAppearance(cell.appearance),
+    };
+  }
+  function copyHoveredCellIntent() {
+    const target = hoverWorldTarget(false);
+    if (!target || !target.cell) return false;
+    copiedHoverCell = cloneCellIntent(target.cell);
+    return !!copiedHoverCell;
+  }
+  function pasteHoveredCellIntent() {
+    if (!copiedHoverCell) return false;
+    const target = hoverWorldTarget(true);
+    if (!target) return false;
+    const current = getWorldCell(target.x, target.z);
+    let next = Object.assign({}, copiedHoverCell);
+    if (next.kind) {
+      next.terrain = next.kind === 'bridge' ? 'water'
+        : CROP_KINDS.has(next.kind) ? 'dirt'
+        : (current && current.terrain) || next.terrain || 'grass';
+      next.terrainFloors = terrainLevelForCell(current);
+    }
+    setCell(target.x, target.z, Object.assign({}, next, {
+      userEdited: target.userEdited,
+      animate: true,
+      impactDust: true,
+    }));
+    return true;
+  }
+
   // keyboard shortcuts
   window.addEventListener('keydown', e => {
     if (shortcutTargetBlocked(e.target)) return;
+    const comboKey = e.key.toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'c') {
+      if (copyHoveredCellIntent()) e.preventDefault();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'v') {
+      if (pasteHoveredCellIntent()) e.preventDefault();
+      return;
+    }
     // Never swallow OS-level keystrokes like Cmd+R (reload), Ctrl+R, Cmd+F, etc.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -16076,341 +16290,364 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://tinyworld.local/world.schema.json",
     "title": "TinyWorld",
-    "description": "Scene description for the Tiny World Builder. The renderer supports home grids from 8x8 to 512x512, plus sparse user-edited ghost-board cells outside the home grid. Each non-default cell has a terrain, optional object kind, separate object floors and terrainFloors counts, optional house buildingType, optional fenceSide, optional decorative extras, and optional within-tile transform.",
+    "description": "Scene description for the Tiny World Builder. The renderer supports home grids from 8x8 to 512x512, plus sparse user-edited ghost-board cells outside the home grid. Each non-default cell has a terrain, optional object kind, separate object floors and terrainFloors counts, optional house buildingType, optional fenceSide, optional decorative extras, optional within-tile transform, and optional appearance overrides.",
     "type": "object",
     "additionalProperties": false,
     "required": [
-      "v",
-      "cells"
+        "v",
+        "cells"
     ],
     "properties": {
-      "v": {
-        "type": "integer",
-        "enum": [
-          4
-        ],
-        "description": "Schema version. Must be 4."
-      },
-      "gridSize": {
-        "type": "integer",
-        "enum": [
-          8,
-          12,
-          16,
-          20,
-          32,
-          48,
-          64,
-          96,
-          128,
-          256,
-          512
-        ],
-        "description": "Optional home board edge length. Defaults to the current app grid when omitted."
-      },
-      "cells": {
-        "type": "array",
-        "description": "Sparse list of non-default cells. The app exports compact tuple cells but also accepts object cells for AI/tooling convenience. Coordinates may include user-edited ghost-board cells outside the home grid.",
-        "items": {
-          "$ref": "#/$defs/cell"
+        "v": {
+            "type": "integer",
+            "enum": [
+                4
+            ],
+            "description": "Schema version. Must be 4."
+        },
+        "gridSize": {
+            "type": "integer",
+            "enum": [
+                8,
+                12,
+                16,
+                20,
+                32,
+                48,
+                64,
+                96,
+                128,
+                256,
+                512
+            ],
+            "description": "Optional home board edge length. Defaults to the current app grid when omitted."
+        },
+        "cells": {
+            "type": "array",
+            "description": "Sparse list of non-default cells. The app exports compact tuple cells but also accepts object cells for AI/tooling convenience. Coordinates may include user-edited ghost-board cells outside the home grid.",
+            "items": {
+                "$ref": "#/$defs/cell"
+            }
+        },
+        "cameraMode": {
+            "type": "string",
+            "enum": [
+                "ortho",
+                "topdown",
+                "soft",
+                "perspective",
+                "fp"
+            ],
+            "description": "Optional preferred camera. Saved worlds usually use ortho, soft, perspective, or fp; topdown is accepted for imports."
+        },
+        "toolId": {
+            "type": "string",
+            "description": "Optional tool to leave selected after load. Ignored if unknown."
         }
-      },
-      "cameraMode": {
-        "type": "string",
-        "enum": [
-          "ortho",
-          "topdown",
-          "soft",
-          "perspective",
-          "fp"
-        ],
-        "description": "Optional preferred camera. Saved worlds usually use ortho, soft, perspective, or fp; topdown is accepted for imports."
-      },
-      "toolId": {
-        "type": "string",
-        "description": "Optional tool to leave selected after load. Ignored if unknown."
-      }
     },
     "$defs": {
-      "coord": {
-        "type": "integer",
-        "minimum": -1024,
-        "maximum": 1024
-      },
-      "terrain": {
-        "type": "string",
-        "enum": [
-          "grass",
-          "path",
-          "dirt",
-          "water",
-          "stone",
-          "lava",
-          "sand",
-          "snow"
-        ],
-        "description": "Tile material. Water and lava normally clear hosted kinds except bridge/rock handling in the renderer. Dirt is auto-applied under crops. Stone/snow read as mountain caps; sand as a water-edge beach."
-      },
-      "kind": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          null,
-          "house",
-          "tree",
-          "fence",
-          "rock",
-          "bridge",
-          "crop",
-          "corn",
-          "wheat",
-          "pumpkin",
-          "carrot",
-          "sunflower",
-          "tuft",
-          "flower",
-          "bush",
-          "cow",
-          "sheep"
-        ]
-      },
-      "buildingType": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          null,
-          "cottage",
-          "manor",
-          "tower",
-          "turret",
-          "skyscraper"
-        ]
-      },
-      "fenceSide": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          null,
-          "n",
-          "s",
-          "e",
-          "w",
-          "center-x",
-          "center-z"
-        ]
-      },
-      "extra": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "fence",
-              "tuft"
-            ]
-          },
-          "k": {
-            "type": "string",
-            "enum": [
-              "fence",
-              "tuft"
-            ]
-          },
-          "fenceSide": {
-            "$ref": "#/$defs/fenceSide"
-          },
-          "s": {
-            "$ref": "#/$defs/fenceSide"
-          },
-          "floors": {
+        "coord": {
             "type": "integer",
-            "minimum": 1,
-            "maximum": 8
-          },
-          "f": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8
-          }
+            "minimum": -1024,
+            "maximum": 1024
         },
-        "anyOf": [
-          {
-            "required": [
-              "kind"
-            ]
-          },
-          {
-            "required": [
-              "k"
-            ]
-          }
-        ]
-      },
-      "extras": {
-        "type": [
-          "array",
-          "null"
-        ],
-        "items": {
-          "$ref": "#/$defs/extra"
-        }
-      },
-      "transform": {
-        "oneOf": [
-          {
-            "type": "array",
-            "minItems": 3,
-            "maxItems": 3,
-            "prefixItems": [
-              {
-                "type": "number",
-                "description": "rotationY in radians"
-              },
-              {
-                "type": "number",
-                "description": "offsetX in tile units"
-              },
-              {
-                "type": "number",
-                "description": "offsetZ in tile units"
-              }
+        "terrain": {
+            "type": "string",
+            "enum": [
+                "grass",
+                "path",
+                "dirt",
+                "water",
+                "stone",
+                "lava",
+                "sand",
+                "snow"
             ],
-            "items": false
-          },
-          {
+            "description": "Tile material. Water and lava normally clear hosted kinds except bridge/rock handling in the renderer. Dirt is auto-applied under crops. Stone/snow read as mountain caps; sand as a water-edge beach."
+        },
+        "kind": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                null,
+                "house",
+                "tree",
+                "fence",
+                "rock",
+                "bridge",
+                "crop",
+                "corn",
+                "wheat",
+                "pumpkin",
+                "carrot",
+                "sunflower",
+                "tuft",
+                "flower",
+                "bush",
+                "cow",
+                "sheep"
+            ]
+        },
+        "buildingType": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                null,
+                "cottage",
+                "manor",
+                "tower",
+                "turret",
+                "skyscraper"
+            ]
+        },
+        "fenceSide": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                null,
+                "n",
+                "s",
+                "e",
+                "w",
+                "center-x",
+                "center-z"
+            ]
+        },
+        "extra": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "rotationY": {
-                "type": "number"
-              },
-              "offsetX": {
-                "type": "number"
-              },
-              "offsetZ": {
-                "type": "number"
-              }
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "fence",
+                        "tuft"
+                    ]
+                },
+                "k": {
+                    "type": "string",
+                    "enum": [
+                        "fence",
+                        "tuft"
+                    ]
+                },
+                "fenceSide": {
+                    "$ref": "#/$defs/fenceSide"
+                },
+                "s": {
+                    "$ref": "#/$defs/fenceSide"
+                },
+                "floors": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                },
+                "f": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                }
+            },
+            "anyOf": [
+                {
+                    "required": [
+                        "kind"
+                    ]
+                },
+                {
+                    "required": [
+                        "k"
+                    ]
+                }
+            ]
+        },
+        "extras": {
+            "type": [
+                "array",
+                "null"
+            ],
+            "items": {
+                "$ref": "#/$defs/extra"
             }
-          }
-        ]
-      },
-      "cellObject": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "x",
-          "z",
-          "terrain",
-          "kind",
-          "floors",
-          "terrainFloors",
-          "buildingType",
-          "fenceSide"
-        ],
-        "properties": {
-          "x": {
-            "$ref": "#/$defs/coord"
-          },
-          "z": {
-            "$ref": "#/$defs/coord"
-          },
-          "terrain": {
-            "$ref": "#/$defs/terrain"
-          },
-          "kind": {
-            "$ref": "#/$defs/kind"
-          },
-          "floors": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8,
-            "description": "Object stack/intensity count. For houses it means floors; for non-house props/crops it is enhancement density from repeat taps. It must not be used to raise the ground."
-          },
-          "terrainFloors": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8,
-            "description": "Ground height stack for the terrain layer only. Terrain repeat taps raise this value. Object repeat taps raise floors instead."
-          },
-          "buildingType": {
-            "$ref": "#/$defs/buildingType"
-          },
-          "fenceSide": {
-            "$ref": "#/$defs/fenceSide"
-          },
-          "extras": {
-            "$ref": "#/$defs/extras"
-          },
-          "transform": {
-            "$ref": "#/$defs/transform"
-          }
+        },
+        "appearance": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "bodyColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "topColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                }
+            }
+        },
+        "transform": {
+            "oneOf": [
+                {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "prefixItems": [
+                        {
+                            "type": "number",
+                            "description": "rotationY in radians"
+                        },
+                        {
+                            "type": "number",
+                            "description": "offsetX in tile units"
+                        },
+                        {
+                            "type": "number",
+                            "description": "offsetZ in tile units"
+                        }
+                    ],
+                    "items": false
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "rotationY": {
+                            "type": "number"
+                        },
+                        "offsetX": {
+                            "type": "number"
+                        },
+                        "offsetZ": {
+                            "type": "number"
+                        }
+                    }
+                }
+            ]
+        },
+        "cellObject": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "x",
+                "z",
+                "terrain",
+                "kind",
+                "floors",
+                "terrainFloors",
+                "buildingType",
+                "fenceSide"
+            ],
+            "properties": {
+                "x": {
+                    "$ref": "#/$defs/coord"
+                },
+                "z": {
+                    "$ref": "#/$defs/coord"
+                },
+                "terrain": {
+                    "$ref": "#/$defs/terrain"
+                },
+                "kind": {
+                    "$ref": "#/$defs/kind"
+                },
+                "floors": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "Object stack/intensity count. For houses it means floors; for non-house props/crops it is enhancement density from repeat taps. It must not be used to raise the ground."
+                },
+                "terrainFloors": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "Ground height stack for the terrain layer only. Terrain repeat taps raise this value. Object repeat taps raise floors instead."
+                },
+                "buildingType": {
+                    "$ref": "#/$defs/buildingType"
+                },
+                "fenceSide": {
+                    "$ref": "#/$defs/fenceSide"
+                },
+                "extras": {
+                    "$ref": "#/$defs/extras"
+                },
+                "transform": {
+                    "$ref": "#/$defs/transform"
+                },
+                "appearance": {
+                    "$ref": "#/$defs/appearance"
+                }
+            }
+        },
+        "cellTuple": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 11,
+            "prefixItems": [
+                {
+                    "$ref": "#/$defs/coord",
+                    "description": "x"
+                },
+                {
+                    "$ref": "#/$defs/coord",
+                    "description": "z"
+                },
+                {
+                    "$ref": "#/$defs/terrain"
+                },
+                {
+                    "$ref": "#/$defs/kind"
+                },
+                {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "floors"
+                },
+                {
+                    "$ref": "#/$defs/buildingType"
+                },
+                {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "terrainFloors"
+                },
+                {
+                    "$ref": "#/$defs/fenceSide"
+                },
+                {
+                    "$ref": "#/$defs/extras"
+                },
+                {
+                    "$ref": "#/$defs/transform"
+                },
+                {
+                    "$ref": "#/$defs/appearance"
+                }
+            ],
+            "items": false
+        },
+        "cell": {
+            "oneOf": [
+                {
+                    "$ref": "#/$defs/cellObject"
+                },
+                {
+                    "$ref": "#/$defs/cellTuple"
+                }
+            ]
         }
-      },
-      "cellTuple": {
-        "type": "array",
-        "minItems": 4,
-        "maxItems": 10,
-        "prefixItems": [
-          {
-            "$ref": "#/$defs/coord",
-            "description": "x"
-          },
-          {
-            "$ref": "#/$defs/coord",
-            "description": "z"
-          },
-          {
-            "$ref": "#/$defs/terrain"
-          },
-          {
-            "$ref": "#/$defs/kind"
-          },
-          {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8,
-            "description": "floors"
-          },
-          {
-            "$ref": "#/$defs/buildingType"
-          },
-          {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8,
-            "description": "terrainFloors"
-          },
-          {
-            "$ref": "#/$defs/fenceSide"
-          },
-          {
-            "$ref": "#/$defs/extras"
-          },
-          {
-            "$ref": "#/$defs/transform"
-          }
-        ],
-        "items": false
-      },
-      "cell": {
-        "oneOf": [
-          {
-            "$ref": "#/$defs/cellObject"
-          },
-          {
-            "$ref": "#/$defs/cellTuple"
-          }
-        ]
-      }
     }
-  };
+};
 
   // -------- AI generation --------
   // Prompts an LLM for a world description matching WORLD_SCHEMA, validates
@@ -16717,12 +16954,12 @@
     const seen = new Set();
     for (let i = 0; i < data.cells.length; i++) {
       const c = data.cells[i];
-      let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide;
+      let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, appearance;
       if (Array.isArray(c)) {
         if (c.length < 4) return 'cells[' + i + '] tuple too short';
-        [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide] = c;
+        [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, , , appearance] = c;
       } else if (c && typeof c === 'object') {
-        ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide } = c);
+        ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, appearance } = c);
       } else {
         return 'cells[' + i + '] not object';
       }
@@ -16744,6 +16981,7 @@
       const fs = fenceSide === undefined ? null : fenceSide;
       if (!okFenceSide.has(fs)) return 'cells[' + i + '].fenceSide invalid: ' + fenceSide;
       if (fs && k !== 'fence') return 'cells[' + i + '].fenceSide only allowed on fence';
+      if (appearance !== undefined && appearance !== null && !normalizeAppearance(appearance)) return 'cells[' + i + '].appearance invalid';
     }
     return null;
   }
@@ -18160,13 +18398,130 @@
     const previewBox = document.getElementById('agent-selection-preview');
     const previewCount = document.getElementById('agent-selection-count');
     const previewList = document.getElementById('agent-selection-list');
+    const previewProps = document.getElementById('agent-selection-properties');
     const panelTitle = document.getElementById('agent-panel-title');
+
+    function selectedWorldCoords() {
+      const sel = window.__tinyworldSelection;
+      if (!sel) return [];
+      const out = [];
+      sel.cells.forEach(key => {
+        const c = parseCellKey(key);
+        out.push({ x: c.x + (c.bx || 0) * GRID, z: c.z + (c.bz || 0) * GRID });
+      });
+      return out;
+    }
+
+    function applySelectionProperty(rowKey, value) {
+      const coords = selectedWorldCoords();
+      if (!coords.length) return;
+      coords.forEach(({ x, z }) => {
+        const cell = getWorldCell(x, z);
+        if (!cell) return;
+        if (rowKey === 'bodyColor' || rowKey === 'topColor') {
+          if (cell.kind !== 'house') return;
+          const appearance = Object.assign({}, normalizeAppearance(cell.appearance) || {});
+          appearance[rowKey] = value;
+          setCell(x, z, { ...cell, appearance, animate: false, impactDust: false });
+        } else if (rowKey === 'buildingType') {
+          if (cell.kind !== 'house') return;
+          const floors = value === 'tower' ? Math.max(cell.floors || 1, 2)
+            : value === 'skyscraper' ? Math.max(cell.floors || 1, 4)
+            : (cell.floors || 1);
+          setCell(x, z, { ...cell, buildingType: value, floors, animate: false, impactDust: false });
+        } else if (rowKey === 'size') {
+          if (cell.kind) {
+            const floors = value === 'small' ? 1 : value === 'large' ? 4 : 2;
+            setCell(x, z, { ...cell, floors, animate: false, impactDust: false });
+          } else {
+            const terrainFloors = value === 'small' ? 1 : value === 'large' ? 4 : 2;
+            setCell(x, z, { ...cell, terrainFloors, animate: false, impactDust: false });
+          }
+        }
+      });
+      notifySelectionChanged();
+    }
+
+    function renderSelectionProperties(summary, entries) {
+      if (!previewProps) return;
+      previewProps.innerHTML = '';
+      if (!entries.length) {
+        previewProps.hidden = true;
+        return;
+      }
+      const primary = entries[0][0];
+      const rows = [];
+      if (primary === 'house') {
+        rows.push(
+          { key: 'topColor', label: 'Top', color: true, options: [
+            { label: 'Purple', value: '#6c55c7', color: '#6c55c7' },
+            { label: 'Blue', value: '#2f74b7', color: '#2f74b7' },
+            { label: 'Red', value: '#b84b38', color: '#b84b38' },
+            { label: 'Slate', value: '#3a3a40', color: '#3a3a40' },
+            { label: 'Gold', value: '#d6a93b', color: '#d6a93b' },
+          ] },
+          { key: 'bodyColor', label: 'Body', color: true, options: [
+            { label: 'Stone', value: '#a9a39a', color: '#a9a39a' },
+            { label: 'Cream', value: '#f2dfb0', color: '#f2dfb0' },
+            { label: 'Brick', value: '#a84a3a', color: '#a84a3a' },
+            { label: 'Dark', value: '#77716a', color: '#77716a' },
+          ] },
+          { key: 'buildingType', label: 'Shape', options: [
+            { label: 'Cottage', value: 'cottage' },
+            { label: 'Manor', value: 'manor' },
+            { label: 'Tower', value: 'tower' },
+            { label: 'Castle', value: 'turret' },
+            { label: 'High-rise', value: 'skyscraper' },
+          ] },
+        );
+      }
+      rows.push({ key: 'size', label: 'Size', options: [
+        { label: 'Small', value: 'small' },
+        { label: 'Medium', value: 'medium' },
+        { label: 'Large', value: 'large' },
+      ] });
+      rows.forEach(row => {
+        const wrap = document.createElement('div');
+        wrap.className = 'selection-prop-row';
+        const label = document.createElement('div');
+        label.className = 'selection-prop-label';
+        label.textContent = row.label;
+        const options = document.createElement('div');
+        options.className = 'selection-prop-options';
+        row.options.forEach(opt => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'selection-prop-chip' + (row.color ? ' color-chip' : '');
+          if (row.color && opt.color) {
+            const swatch = document.createElement('span');
+            swatch.className = 'selection-prop-swatch';
+            swatch.style.background = opt.color;
+            chip.appendChild(swatch);
+          }
+          chip.appendChild(document.createTextNode(opt.label));
+          chip.addEventListener('click', e => {
+            e.stopPropagation();
+            applySelectionProperty(row.key, opt.value);
+          });
+          options.appendChild(chip);
+        });
+        wrap.appendChild(label);
+        wrap.appendChild(options);
+        previewProps.appendChild(wrap);
+      });
+      previewProps.hidden = false;
+    }
+
     function renderSelection() {
       const sel = window.__tinyworldSelection;
       const summary = sel && sel.summary();
       if (!summary) {
         panel.classList.remove('has-selection');
         previewBox.hidden = true;
+        if (previewProps) {
+          previewProps.innerHTML = '';
+          previewProps.hidden = true;
+        }
         if (panelTitle) panelTitle.textContent = 'Agent conversation';
         return;
       }
@@ -18187,6 +18542,7 @@
         li.appendChild(count);
         previewList.appendChild(li);
       }
+      renderSelectionProperties(summary, entries);
       if (panelTitle) panelTitle.textContent = 'Selection';
       // Slide the panel in (expanded) and pin so the user can chat about it.
       setPanelCollapsed(false, { pin: true });
@@ -18532,12 +18888,12 @@
       // Accept either tuple form [x,z,terrain,kind,floors,buildingType,terrainFloors,fenceSide]
       // (storage / export) or object form {x,z,terrain,kind,floors,buildingType,terrainFloors,fenceSide}
       // (canonical schema, AI generation output).
-      let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform;
+      let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance;
       if (Array.isArray(entry)) {
         if (entry.length < 4) continue;
-        [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform] = entry;
+        [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance] = entry;
       } else if (entry && typeof entry === 'object') {
-        ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform } = entry);
+        ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance } = entry);
       } else {
         continue;
       }
@@ -18593,6 +18949,7 @@
         fenceSide: normalizedKind === 'fence' ? normalizeFenceSide(fenceSide) : null,
         extras: normalizedExtras,
         rotationY, offsetX, offsetZ,
+        appearance: normalizeAppearance(appearance),
         __outOfHome: x < 0 || x >= GRID || z < 0 || z >= GRID,
         __x: x,
         __z: z,
@@ -18718,6 +19075,7 @@
         rotationY: o ? o.rotationY : 0,
         offsetX: o ? o.offsetX : 0,
         offsetZ: o ? o.offsetZ : 0,
+        appearance: o ? o.appearance : null,
         animate: item.phase !== 'full' || !!(o && (o.kind || (o.extras && o.extras.length))),
         forceTile: item.phase !== 'detail' && item.phase !== 'full',
       });
@@ -18774,6 +19132,7 @@
           rotationY: o.rotationY,
           offsetX: o.offsetX,
           offsetZ: o.offsetZ,
+          appearance: o.appearance,
           userEdited: true,
           animate: false,
           forceTile: true,
@@ -18829,11 +19188,11 @@
   }
 
   function cellPatchFromEntry(entry) {
-    let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform;
+    let x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance;
     if (Array.isArray(entry)) {
-      [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform] = entry;
+      [x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance] = entry;
     } else if (entry && typeof entry === 'object') {
-      ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform } = entry);
+      ({ x, z, terrain, kind, floors, buildingType, terrainFloors, fenceSide, extras, transform, appearance } = entry);
     }
     if (!Number.isInteger(x) || !Number.isInteger(z)) return null;
     if (x < 0 || x >= GRID || z < 0 || z >= GRID) return null;
@@ -18857,6 +19216,7 @@
       fenceSide: kind === 'fence' ? normalizeFenceSide(fenceSide) : null,
       extras: Array.isArray(extras) ? extras : [],
       rotationY, offsetX, offsetZ,
+      appearance: normalizeAppearance(appearance),
     };
   }
 
@@ -18885,6 +19245,7 @@
           rotationY: c.rotationY,
           offsetX: c.offsetX,
           offsetZ: c.offsetZ,
+          appearance: c.appearance,
           animate: true,
           impactDust: false,
         });
@@ -20362,7 +20723,7 @@
         // brand title remains readable on a dark backdrop.
         const isDark = (tod.sunI < 0.55);
         document.documentElement.style.setProperty('--ink', isDark ? '#f4ede0' : '#2a2722');
-        document.documentElement.style.setProperty('--muted', isDark ? '#cdc1ad' : '#8a847a');
+        document.documentElement.style.setProperty('--muted', isDark ? '#d8ccb8' : '#6f695f');
       } catch (err) { console.warn('[lights] apply failed:', err); }
     }
     window.__applyLights = applyLights;

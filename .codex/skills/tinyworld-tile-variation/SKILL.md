@@ -30,7 +30,7 @@ Fence levels:
 
 Implementation guardrails:
 
-- Do not add new saved fields unless necessary; prefer `floors`.
+- Do not add new saved fields unless necessary; prefer `floors`. Per-cell visual-only overrides may use `appearance` when the user explicitly needs immediate editable colours (e.g. tower `bodyColor` / `topColor`).
 - If adding a new visual variation, route it through the factory for the existing `kind`.
 - Rock and hill variants need visible contact skirts/talus at tile level so stacked or connected geometry reads grounded.
 - Connected fence/wall rails should overlap tile boundaries slightly; never leave visible gaps in a run.
@@ -43,5 +43,6 @@ Validation:
 - Repeated terrain placement on an empty cell should raise the tile.
 - Repeated object placement should keep `terrainFloors` unchanged and alter only the object.
 - Objects should sit on raised terrain when rendered.
+- Selection-panel property chips should apply immediate local changes through `setCell` when the renderer supports the property; do not fake direct controls by only writing prompts.
 - Houses placed on `path` or `water` must preserve that terrain and render on an underpass/stilt base; do not coerce those tiles back to grass.
 - Same-terrain repeat placement should be visible before refresh/reload.
