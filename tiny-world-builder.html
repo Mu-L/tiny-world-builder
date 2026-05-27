@@ -21393,6 +21393,7 @@
   let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw'
   let selectionDragAnchor = null;
   const drawVisitedCells = new Set();
+  const drawChangedWorldCoords = new Map();
   let drawLastWorldCoord = null;
   let spaceDown = false;
   const DRAG_THRESHOLD = 5;
@@ -21411,6 +21412,7 @@
     didDrag = false;
     dragMode = null;
     drawVisitedCells.clear();
+    drawChangedWorldCoords.clear();
     drawLastWorldCoord = null;
     spaceDown = false;
     pinchPrevDist = 0;
@@ -21504,6 +21506,10 @@
     drawVisitedCells.add(key);
     setHoverFromCell(hit);
     applyToolToCell(hit, { skipSelectionBulk: true, drawing: true });
+    if (!(selectedTool && selectedTool.erase)) {
+      const coord = drawWorldCoordForHit(hit);
+      if (coord) drawChangedWorldCoords.set(coord.x + ',' + coord.z, coord);
+    }
     return true;
   }
 
@@ -21572,6 +21578,7 @@
     lastPointer = { x: e.clientX, y: e.clientY };
     didDrag = false;
     drawVisitedCells.clear();
+    drawChangedWorldCoords.clear();
     drawLastWorldCoord = null;
     // Touch devices don't have hover before contact, so prime currentHover
     // at the press location so a quick tap can place a tile.
@@ -21709,11 +21716,15 @@
     // (Shift+click + shift+drag are handled by setRectangleSelection
     // in pointerdown/pointermove respectively.)
     if (activePointers.size === 0) {
+      if (dragMode === 'draw' && drawChangedWorldCoords.size && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
+        window.__tinyworldSelection.replaceWorldCoords(Array.from(drawChangedWorldCoords.values()));
+      }
       pointerDown = null;
       lastPointer = null;
       dragMode = null;
       selectionDragAnchor = null;
       drawVisitedCells.clear();
+      drawChangedWorldCoords.clear();
       drawLastWorldCoord = null;
       // Touch devices: clear the hover marker after a tap so it doesn't linger.
       if (e.pointerType !== 'mouse') {
@@ -21739,6 +21750,7 @@
       pinchPrevDist = 0;
       pinchPrevMid = null;
       drawVisitedCells.clear();
+      drawChangedWorldCoords.clear();
       drawLastWorldCoord = null;
     }
   });
