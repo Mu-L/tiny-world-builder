@@ -3452,6 +3452,31 @@
     cursor: not-allowed;
     filter: grayscale(0.28);
   }
+  .stamp-card-delete {
+    position: absolute;
+    z-index: 2;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(92, 61, 31, 0.22);
+    border-radius: 50%;
+    background: rgba(255, 248, 232, 0.86);
+    color: #6f5132;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(54, 39, 24, 0.14);
+  }
+  .stamp-card-delete:hover {
+    background: #fff3df;
+    border-color: rgba(134, 74, 30, 0.42);
+    color: #8b4f2e;
+  }
   .stamp-card canvas {
     position: relative;
     z-index: 1;
@@ -20057,6 +20082,34 @@
     return match ? match.assetTemplate : null;
   }
 
+  function deleteAssetTemplate(id) {
+    if (!id) return false;
+    const templates = loadAssetTemplates();
+    let removed = null;
+    const next = [];
+    templates.forEach((template, index) => {
+      const normalized = normalizedAssetTemplateTool(template, index);
+      const templateId = normalized && normalized.assetTemplateId
+        ? normalized.assetTemplateId
+        : ((template && typeof template.id === 'string' && template.id) ? template.id : 'template-' + index);
+      if (templateId === id) {
+        removed = (normalized && normalized.assetTemplate) || template;
+      } else {
+        next.push(template);
+      }
+    });
+    if (!removed) return false;
+    saveAssetTemplates(next);
+    if (selectedAssetTemplateId === id) selectedAssetTemplateId = null;
+    if (selectedTool && selectedTool.kind === 'asset-template' && selectedTool.assetTemplateId === id) {
+      selectTool(DEFAULT_TOOL);
+    }
+    renderStampBuilderCards();
+    const status = document.getElementById('stamp-builder-status');
+    if (status) status.textContent = 'Deleted template: ' + (removed.name || id);
+    return true;
+  }
+
   function assetTemplateSearchText(tool) {
     const template = tool && tool.assetTemplate;
     const cells = template && template.clipboard ? normalizeClipboardCells(template.clipboard.cells) : [];
@@ -20444,6 +20497,21 @@
       card.setAttribute('role', 'button');
       card.tabIndex = 0;
       card.setAttribute('aria-pressed', key === selectedKey ? 'true' : 'false');
+      if (tool.isAssetTemplate) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'stamp-card-delete';
+        deleteBtn.title = 'Delete template';
+        deleteBtn.setAttribute('aria-label', 'Delete template ' + tool.label);
+        deleteBtn.textContent = '×';
+        deleteBtn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!confirm('Delete template "' + tool.label + '"?')) return;
+          deleteAssetTemplate(tool.assetTemplateId);
+        });
+        card.appendChild(deleteBtn);
+      }
       const canvas = document.createElement('canvas');
       const title = document.createElement('strong');
       title.textContent = tool.label;
