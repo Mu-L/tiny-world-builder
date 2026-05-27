@@ -23077,6 +23077,23 @@
     }));
   }
 
+  function resetSelectedBoardObjectTransform() {
+    return updateSelectedBoardObjects(target => {
+      const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
+      delete appearance.objectScale;
+      delete appearance.scaleX;
+      delete appearance.scaleY;
+      delete appearance.scaleZ;
+      return {
+        rotationY: 0,
+        offsetX: 0,
+        offsetY: 0,
+        offsetZ: 0,
+        appearance: Object.keys(appearance).length ? appearance : null,
+      };
+    });
+  }
+
   function seedVoxelBuildForSelectedObject(target) {
     if (!target || !target.cell || !target.cell.kind) return null;
     const cell = target.cell;
@@ -29800,6 +29817,10 @@
         else if (value === 'z+') moveSelectedBoardObject(0, 0, step);
         return;
       }
+      if (rowKey === 'objectTransformReset') {
+        resetSelectedBoardObjectTransform();
+        return;
+      }
       if (rowKey === 'objectMaterial') {
         const nextTexture = normalizeMaterialTextureKey(value);
         updateSelectedBoardObjects(target => {
@@ -29995,6 +30016,9 @@
             { label: 'Y+', value: 'y+' },
             { label: 'Z-', value: 'z-' },
             { label: 'Z+', value: 'z+' },
+          ] },
+          { key: 'objectTransformReset', label: 'Reset', options: [
+            { label: 'Transform', value: 'transform' },
           ] },
         ]);
         addRows('Appearance', [
