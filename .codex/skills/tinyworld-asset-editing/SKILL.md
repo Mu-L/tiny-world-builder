@@ -53,6 +53,7 @@ Selection properties:
 - Selected-object scale rows should also provide per-scale reset controls that clear only `objectScale`, `scaleX`, `scaleY`, or `scaleZ`, preserving materials, colours, model IDs, and style.
 - Selected-object nudge controls should include a recenter path that clears only `offsetX/Y/Z`, preserving rotation, scale, materials, colours, model IDs, and style.
 - Selected-object material scale controls should offer a reset path that clears only the matching texture-scale key and keeps the chosen texture/material, colours, model IDs, and style intact.
+- Model stamps should expose All material / All mat scale controls, but Body/Top material controls should be limited to selected asset kinds with known Tiny World material buckets; mixed selections must not write part-material fields onto model stamps.
 
 Stamps panel:
 
