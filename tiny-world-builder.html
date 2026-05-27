@@ -21644,12 +21644,12 @@
     if (dragMode === 'select-area' && didDrag && selectedTool && !selectedTool.select) {
       const sel = window.__tinyworldSelection;
       if (sel && sel.cells.size > 0) {
-        // Trigger the bulk path inside applyTool by calling it on any selected cell
+        // Trigger the bulk path inside applyTool by calling it on any selected cell.
+        // Keep the selection active for immediate colour/material/transform edits.
         const firstCoord = sel.worldCoords && sel.worldCoords()[0];
         if (firstCoord) {
           applyTool(firstCoord.x, firstCoord.z);   // will hit the selection bulk logic
         }
-        clearSelection();
       }
     }
 
