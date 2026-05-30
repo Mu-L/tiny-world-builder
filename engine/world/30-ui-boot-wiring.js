@@ -2036,6 +2036,13 @@
       items.push({ group: 'World', label: 'Clear to grass', hint: 'wipe to empty grass', run: topBtnAction('clear') });
       items.push({ group: 'Assets', label: 'Export assets to file', hint: 'back up custom voxel builds + templates as JSON', run: () => exportAssetLibrary() });
       items.push({ group: 'Assets', label: 'Import assets from file', hint: 'restore custom builds + templates from a .json', run: () => importAssetLibraryViaPicker() });
+      items.push({ group: 'World', label: 'Clear all sky-islands', hint: 'remove every editable island (keeps the home world)', run: () => {
+        if (typeof clearEditableIslands === 'function') {
+          clearEditableIslands();
+          if (typeof saveState === 'function') saveState();
+          if (typeof twToast === 'function') twToast('Cleared all sky-islands.', 'ok');
+        }
+      } });
       items.push({ group: 'World', label: 'Run vehicle seed demo', hint: 'map + cars + targets from ' + VEHICLE_DEMO_DEFAULT_SEED, run: () => {
         runSeededVehicleDemo(VEHICLE_DEMO_DEFAULT_SEED);
       } });

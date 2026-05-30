@@ -1721,18 +1721,24 @@
   function addIslandRocketEngines(parent) {
     const span = GRID * TILE;
     const half = span * 0.5;
-    const inset = Math.max(0.72, Math.min(1.10, span * 0.10));
-    const y = -DIRT_H - 0.27;
+    const inset = Math.max(0.95, Math.min(1.55, span * 0.15));
+    const y = -DIRT_H - 0.74; // match editable-island engine offset (parity)
     const placements = [
       [-half + inset, -half + inset],
       [ half - inset, -half + inset],
       [-half + inset,  half - inset],
       [ half - inset,  half - inset],
     ];
+    // Home engines use the SAME selectable + upgradeable lift-engine system as
+    // editable islands (propeller default, jet upgrade). buildHomeIslandEngines
+    // (module 14) registers the home island + builds stamped, pickable engines.
+    if (typeof buildHomeIslandEngines === 'function') { buildHomeIslandEngines(parent); return; }
+    // Fallback if module 14 isn't loaded yet: plain (non-selectable) propellers.
     placements.forEach(([x, z], i) => {
-      const engine = makeVoxelRocketEngine(1200 + i * 97);
+      const engine = makeVoxelLiftEngine(1200 + i * 97, { type: 'lift', level: 1 });
       engine.position.set(x, y, z);
-      islandRocketEngines.add(engine);
+      engine.rotation.y = Math.atan2(x, z);
+      if (engine.userData.propeller) editableIslandEnginePropellers.add(engine.userData.propeller);
       parent.add(engine);
     });
   }
@@ -1785,8 +1791,9 @@
       getEditableIslandPropellerDiscMaterial.mat = new THREE.ShaderMaterial({
         uniforms: {
           uTime: editableIslandPropellerDiscTimeUniform,
-          uTint: { value: new THREE.Color(0x2d3235) },
-          uWarm: { value: new THREE.Color(0x5f4935) },
+          // Darker tint so the spinning disc reads against the bright sky.
+          uTint: { value: new THREE.Color(0x131517) },
+          uWarm: { value: new THREE.Color(0x4a3526) },
         },
         transparent: true,
         depthWrite: false,
@@ -1815,7 +1822,7 @@
             float secondary = pow(max(0.0, cos(a * 8.0 + uTime * 9.0)), 5.0) * 0.28;
             float radialBand = 0.72 + 0.28 * sin(r * 18.0 - uTime * 21.0);
             float strobe = 0.72 + 0.28 * step(0.46, fract(uTime * 18.0));
-            float alpha = hubCut * rim * radialBand * strobe * (0.24 + bladeGhost * 0.42 + secondary * 0.28);
+            float alpha = hubCut * rim * radialBand * strobe * (0.46 + bladeGhost * 0.46 + secondary * 0.30);
             if (alpha < 0.014) discard;
             vec3 color = mix(uTint, uWarm, 0.18 + bladeGhost * 0.30);
             gl_FragColor = vec4(color, alpha);
@@ -1911,7 +1918,9 @@
     prop.userData.spinRamp = 0;
     prop.userData.spinRampRate = type === 'heavy' ? 0.72 : (type === 'turbo' ? 1.08 : 0.88);
     engine.add(prop);
-    const propScale = type === 'heavy' ? 1.18 : type === 'turbo' ? 0.98 : 1;
+    // turbo propeller is BIGGER than the default lift; heavy reuses this as the
+    // jet-nozzle scale.
+    const propScale = type === 'heavy' ? 1.18 : type === 'turbo' ? 1.12 : 1;
     const showLegacyOuterCap = opts.showOuterPropellerCap === true;
     const showHubBlocks = opts.showPropellerHubBlocks === true;
     if (showLegacyOuterCap) {
@@ -1998,12 +2007,20 @@
   function buildEditableIslandEngineMesh(island, engineState) {
     if (!island || !engineState || engineState.installed === false) return null;
     const placement = editableIslandEnginePlacement(engineState.slot || 0);
-    const engine = makeVoxelLiftEngine(4200 + (engineState.slot || 0) * 137, engineState);
+    const seed = 4200 + (engineState.slot || 0) * 137;
+    // Heavy tier IS the ORIGINAL jet/rocket engine (makeVoxelRocketEngine) used
+    // unchanged — its nozzle + thrust plume, no propeller. lift/turbo = propeller.
+    let engine;
+    if (engineState.type === 'heavy') {
+      engine = makeVoxelRocketEngine(seed); // original jet, native size — unchanged
+    } else {
+      engine = makeVoxelLiftEngine(seed, engineState);
+    }
     engine.position.set(placement.x, placement.y, placement.z);
     engine.rotation.y = placement.rotationY;
     stampEditableIslandEngineMesh(engine, island, engineState);
     engineState.mesh = engine;
-    engineState.propeller = engine.userData.propeller || null;
+    engineState.propeller = engine.userData.propeller || null; // null for rocket -> no propeller / no spin
     if (engineState.propeller) editableIslandEnginePropellers.add(engineState.propeller);
     return engine;
   }

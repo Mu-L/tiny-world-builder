@@ -854,7 +854,9 @@
   }
 
   function shouldRenderCellMesh(x, z) {
-    if (isEditableIslandCell(x, z)) return !!(world[x] && world[x][z]);
+    // Editable islands render EVERY cell per-cell like home (unpainted cells
+    // default to grass), so terrain shows correctly instead of a flat grass slab.
+    if (isEditableIslandCell(x, z)) return true;
     if (x >= 0 && x < GRID && z >= 0 && z < GRID) return isCellInHomeRenderWindow(x, z);
     if (cellMeshes[x + ',' + z]) return true;
     return !!(world[x] && world[x][z] && world[x][z].userEdited);

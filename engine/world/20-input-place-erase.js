@@ -24,13 +24,14 @@
         // back to the legacy cursor-derived position for the first island
         // (no anchor) or when every neighbour slot is occupied.
         const slot = (currentHover && currentHover.__islandSlot) || islandHoverSlot(cell);
+        // No board key → createEditableIsland assigns a fresh editable-island
+        // board. select:false so placing an island does NOT grab the gizmo /
+        // Move-Rotate menu — selection only happens when the user explicitly
+        // clicks an island.
         if (slot) {
-          createEditableIsland({
-            boardX: slot.boardX, boardZ: slot.boardZ,
-            positionX: slot.positionX, positionY: slot.positionY, positionZ: slot.positionZ,
-          });
+          createEditableIsland({ positionX: slot.positionX, positionY: slot.positionY, positionZ: slot.positionZ, select: false });
         } else {
-          createEditableIsland(nextEditableIslandPosition(cell));
+          createEditableIsland(Object.assign({ select: false }, nextEditableIslandPosition(cell)));
         }
         // Re-anchor the hologram on the freshly placed island for the next one.
         onIslandToolSelected();
@@ -421,21 +422,31 @@
   // still places via the normal cursor path.
   const ISLAND_SLOT_DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]; // S,N,E,W, then diagonals
   function islandToolActive() { return !!(selectedTool && selectedTool.island); }
+  // Anchor to add an island AROUND: the selected sky-island, else the most
+  // recent one, else the HOME world board (origin) so the first sky-island can
+  // be positioned around the main world.
   function islandPlacementAnchor() {
-    return (typeof selectedEditableIsland === 'function' && selectedEditableIsland())
-      || editableIslands[editableIslands.length - 1] || null;
+    const sel = (typeof selectedEditableIsland === 'function' && selectedEditableIsland());
+    if (sel) return sel;
+    if (editableIslands.length) return editableIslands[editableIslands.length - 1];
+    return { positionX: 0, positionY: 0, positionZ: 0, __home: true };
   }
+  // 8 candidate visual positions around the anchor. Occupancy is by VISUAL
+  // position (an existing island already sitting there), NOT board key — so this
+  // works for the home anchor and for gizmo-moved islands. Placement assigns a
+  // fresh editable-island board, so slots never collide with home/ghost boards.
   function islandPlacementSlots(anchor) {
     if (!anchor) return [];
     const gap = GRID + 1;
-    return ISLAND_SLOT_DIRS.map(([dx, dz]) => ({
-      boardX: anchor.boardX + dx,
-      boardZ: anchor.boardZ + dz,
-      positionX: (anchor.positionX || 0) + dx * gap,
-      positionY: (anchor.positionY || 0),
-      positionZ: (anchor.positionZ || 0) + dz * gap,
-      free: !editableIslandForBoard(anchor.boardX + dx, anchor.boardZ + dz),
-    }));
+    return ISLAND_SLOT_DIRS.map(([dx, dz]) => {
+      const positionX = (anchor.positionX || 0) + dx * gap;
+      const positionZ = (anchor.positionZ || 0) + dz * gap;
+      const positionY = (anchor.positionY || 0);
+      const occupied = editableIslands.some(isl =>
+        Math.abs((isl.positionX || 0) - positionX) < gap * 0.5 &&
+        Math.abs((isl.positionZ || 0) - positionZ) < gap * 0.5);
+      return { dx, dz, positionX, positionY, positionZ, free: !occupied };
+    });
   }
   function freeIslandSlots(anchor) { return islandPlacementSlots(anchor).filter(s => s.free); }
   function defaultIslandSlot(anchor) { const f = freeIslandSlots(anchor); return f.length ? f[0] : null; }
@@ -459,7 +470,7 @@
   }
   function islandSlotHoverCell(slot) {
     return {
-      x: 0, z: 0, boardX: slot.boardX, boardZ: slot.boardZ,
+      x: 0, z: 0,
       worldX: slot.positionX, worldY: slot.positionY, worldZ: slot.positionZ,
       __islandSlot: slot, __islandSlotY: slot.positionY,
     };
@@ -489,7 +500,12 @@
         updateGhostPlacement();
         return;
       }
-      // no anchor / no free slot → fall through to normal cursor placement
+      // Island tool but every slot is occupied: do NOT blanket the board with a
+      // giant island ghost — hide it. Placement still works via the click path.
+      hoverMesh.visible = false;
+      currentHover = null;
+      updateGhostPlacement();
+      return;
     }
     if (cell) {
       hoverMesh.position.set(cell.worldX, hoverHeightForCell(cell), cell.worldZ);

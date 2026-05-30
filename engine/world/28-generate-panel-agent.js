@@ -2215,6 +2215,7 @@
       if (!summary) {
         if (engineTarget) {
           markAgentActivity();
+          panel.classList.remove('hidden'); // reveal the panel so engine controls are visible
           panel.classList.add('has-selection');
           previewBox.hidden = false;
           syncAgentTargetChip(null, { cellCount: 1, kinds: { engine: 1 }, terrains: {} });

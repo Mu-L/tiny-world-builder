@@ -938,48 +938,172 @@
     return TOP_H + terrainRiseAt(cellX, cellZ) + 0.025;
   }
 
+  // Terrain a crowd person may walk on. Crowds now roam any walkable LAND;
+  // paths/bridges are preferred routes (see path bias below). Water and lava are
+  // impassable, and any placed object (house, tree, rock, …) blocks the cell.
+  const CROWD_WALKABLE_TERRAIN = new Set(['grass', 'path', 'dirt', 'sand', 'snow', 'stone']);
   function isCrowdWalkableCell(x, z) {
     if (x < 0 || x >= GRID || z < 0 || z >= GRID) return false;
     const cell = getWorldCell(x, z);
-    if (cell.kind === 'bridge') return true;
-    return cell.terrain === 'path' && !cell.kind;
+    if (cell.kind === 'bridge') return true;   // bridges cross water
+    if (cell.kind) return false;               // houses/trees/rocks/etc. block
+    return CROWD_WALKABLE_TERRAIN.has(cell.terrain);
   }
 
-  function collectCrowdPathCells() {
-    const cells = [];
+  function isCrowdPathCell(x, z) {
+    const cell = getWorldCell(x, z);
+    return cell.kind === 'bridge' || (!cell.kind && cell.terrain === 'path');
+  }
+
+  // True when the straight line a→b stays entirely on walkable cells, so a
+  // person walking it won't cut through a house, object, or water. Sampled at
+  // ~3 points per tile. This is the lightweight stand-in for the fork's envelope
+  // detours: we reject blocked segments rather than actively routing around them.
+  function crowdSegmentWalkable(ax, az, bx, bz) {
+    const steps = Math.max(3, Math.ceil(Math.hypot(bx - ax, bz - az) * 4));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const cx = Math.round(ax + (bx - ax) * t);
+      const cz = Math.round(az + (bz - az) * t);
+      if (!isCrowdWalkableCell(cx, cz)) return false;
+    }
+    return true;
+  }
+
+  function collectCrowdWalkableCells() {
+    const walkable = [], paths = [];
     for (let x = 0; x < GRID; x++) {
       for (let z = 0; z < GRID; z++) {
-        if (isCrowdWalkableCell(x, z)) cells.push({ x, z });
+        if (!isCrowdWalkableCell(x, z)) continue;
+        const c = { x, z };
+        walkable.push(c);
+        if (isCrowdPathCell(x, z)) paths.push(c);
       }
     }
-    return cells;
+    return { walkable, paths };
   }
 
-  function crowdRouteAround(seed, pathCells, index) {
+  // Back-compat: callers that just need somewhere to stand.
+  function collectCrowdPathCells() {
+    return collectCrowdWalkableCells().walkable;
+  }
+
+  const crowdJitterCell = cell => ({
+    x: cell.x + (Math.random() - 0.5) * 0.22,
+    z: cell.z + (Math.random() - 0.5) * 0.22,
+  });
+
+  // Path-biased free-space wander: chain up to ~8 waypoints, each reachable from
+  // the previous by a walkable straight segment (so the route never crosses a
+  // house or water). ~70% of waypoints are drawn from path cells when any exist,
+  // so crowds favour roads but still roam onto open land. The route loops, so the
+  // closing segment (last→seed) is validated too — trailing waypoints whose
+  // return-to-start would cut a corner are trimmed.
+  // BFS shortest path over walkable cells (4-connected) from a→b. Returns an
+  // array of {x,z} cell centres, or null if unreachable. This is how crowds
+  // actively route AROUND houses/water/objects through gaps (vs. the old
+  // reject-blocked-segment approach), so they never cut through obstacles and
+  // never get stuck — replacing the fork's envelope-detour + recovery machinery
+  // with a robust grid path that needs no per-step vendor hooks.
+  function crowdGridPath(ax, az, bx, bz) {
+    ax = Math.round(ax); az = Math.round(az); bx = Math.round(bx); bz = Math.round(bz);
+    if (!isCrowdWalkableCell(ax, az) || !isCrowdWalkableCell(bx, bz)) return null;
+    if (ax === bx && az === bz) return [{ x: bx, z: bz }];
+    const key = (x, z) => x + ',' + z;
+    const goalKey = key(bx, bz);
+    const came = new Map();
+    came.set(key(ax, az), null);
+    const queue = [[ax, az]];
+    let head = 0;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (head < queue.length) {
+      const [cx, cz] = queue[head++];
+      if (cx === bx && cz === bz) break;
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + dirs[d][0], nz = cz + dirs[d][1], k = key(nx, nz);
+        if (came.has(k) || !isCrowdWalkableCell(nx, nz)) continue;
+        came.set(k, key(cx, cz));
+        queue.push([nx, nz]);
+      }
+    }
+    if (!came.has(goalKey)) return null;
+    const path = [];
+    let k = goalKey;
+    while (k) {
+      const c = k.split(',');
+      path.push({ x: +c[0], z: +c[1] });
+      k = came.get(k);
+    }
+    return path.reverse();
+  }
+
+  // Drop collinear points so a straight corridor becomes two waypoints and the
+  // route only keeps the turns (around obstacles), avoiding cell-by-cell zigzag.
+  function crowdSimplifyPath(path) {
+    if (!path || path.length <= 2) return path ? path.slice() : [];
+    const out = [path[0]];
+    for (let i = 1; i < path.length - 1; i++) {
+      const a = path[i - 1], b = path[i], c = path[i + 1];
+      if (Math.sign(b.x - a.x) !== Math.sign(c.x - b.x) || Math.sign(b.z - a.z) !== Math.sign(c.z - b.z)) out.push(b);
+    }
+    out.push(path[path.length - 1]);
+    return out;
+  }
+
+  function crowdWanderRoute(seed, walkable, paths) {
+    if (!walkable.length) return null;
+    const route = [{ x: seed.x, z: seed.z }];
+    let cur = { x: seed.x, z: seed.z };
+    const HOPS = 4; // chained destinations, each reached via a grid path around obstacles
+    const appendPath = (path, dropLast) => {
+      const simp = crowdSimplifyPath(path);
+      const end = dropLast ? simp.length - 1 : simp.length;
+      for (let i = 1; i < end; i++) route.push(crowdJitterCell(simp[i]));
+    };
+    for (let n = 0; n < HOPS; n++) {
+      const pool = (paths.length && Math.random() < 0.7) ? paths : walkable;
+      let dest = null;
+      for (let tries = 0; tries < 16; tries++) {
+        const cand = pool[Math.floor(Math.random() * pool.length)];
+        if (!cand) continue;
+        if (Math.abs(cand.x - cur.x) + Math.abs(cand.z - cur.z) < 2) continue; // not too close
+        dest = cand;
+        break;
+      }
+      if (!dest) continue;
+      const path = crowdGridPath(cur.x, cur.z, dest.x, dest.z);
+      if (!path || path.length < 2) continue;
+      appendPath(path, false);
+      cur = { x: dest.x, z: dest.z };
+    }
+    // Close the loop back to the seed so the follower can cycle cleanly.
+    const back = crowdGridPath(cur.x, cur.z, seed.x, seed.z);
+    if (back && back.length >= 2) appendPath(back, true);
+    return route.length > 1 ? route : null;
+  }
+
+  function crowdRouteAround(seed, walkable, paths, index) {
     if (crowdMode === 'static') return null;
-    const jitter = cell => ({
-      x: cell.x + (Math.random() - 0.5) * 0.22,
-      z: cell.z + (Math.random() - 0.5) * 0.22,
-    });
     if (crowdMode === 'cross') {
-      const far = pathCells
+      const far = walkable
         .map(cell => ({ cell, d: Math.abs(cell.x - seed.x) + Math.abs(cell.z - seed.z) }))
         .sort((a, b) => b.d - a.d)
-        .slice(0, Math.max(1, Math.floor(pathCells.length * 0.25)));
-      return [jitter(seed), jitter(far[index % far.length].cell)];
+        .slice(0, Math.max(1, Math.floor(walkable.length * 0.25)));
+      const target = far[index % far.length].cell;
+      if (crowdSegmentWalkable(seed.x, seed.z, target.x, target.z)) return [crowdJitterCell(seed), crowdJitterCell(target)];
+      return crowdWanderRoute(seed, walkable, paths);
     }
     if (crowdMode === 'circle') {
       const cx = (GRID - 1) / 2;
       const cz = (GRID - 1) / 2;
-      return pathCells
+      return walkable
         .slice()
         .sort((a, b) => Math.atan2(a.z - cz, a.x - cx) - Math.atan2(b.z - cz, b.x - cx))
-        .filter((_, i) => i % Math.max(1, Math.floor(pathCells.length / 10)) === index % Math.max(1, Math.floor(pathCells.length / 10)))
+        .filter((_, i) => i % Math.max(1, Math.floor(walkable.length / 10)) === index % Math.max(1, Math.floor(walkable.length / 10)))
         .slice(0, 10)
-        .map(jitter);
+        .map(crowdJitterCell);
     }
-    const shuffled = pathCells.slice().sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(10, shuffled.length)).map(jitter);
+    return crowdWanderRoute(seed, walkable, paths);
   }
 
   function seedCrowdPeople() {
@@ -987,13 +1111,15 @@
     crowdLayer.clear();
     clearCrowdModelActors();
     if (!crowdEnabled) return;
-    const pathCells = collectCrowdPathCells();
-    const count = Math.min(crowdCount, pathCells.length);
+    const { walkable, paths } = collectCrowdWalkableCells();
+    // Spawn preferentially on paths so crowds start on roads, then wander out.
+    const spawnCells = paths.length ? paths : walkable;
+    const count = Math.min(crowdCount, walkable.length);
     if (!count) return;
     const characters = ['townie', 'little-girl', 'dad', 'grandfather', 'grandmother'];
     for (let i = 0; i < count; i++) {
-      const seed = pathCells[(i * 3) % pathCells.length];
-      const route = crowdRouteAround(seed, pathCells, i);
+      const seed = spawnCells[(i * 3) % spawnCells.length];
+      const route = crowdRouteAround(seed, walkable, paths, i);
       crowdLayer.addPerson({
         id: 'ambient-' + i,
         x: seed.x + (Math.random() - 0.5) * 0.24,

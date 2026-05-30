@@ -55,6 +55,40 @@
       : null;
   }
 
+  // The HOME world is an island too (just flagged __home). It gets the SAME
+  // engine system as editable islands so its engines are selectable + upgradeable
+  // (propeller default -> jet). It lives ONLY in editableIslandById (so engine
+  // picking resolves it) — NOT in the editableIslands array or board-key map, so
+  // it still renders/behaves as home and is never moved/serialized as a sky island.
+  let homeIslandRef = null;
+  function ensureHomeIslandObject() {
+    if (homeIslandRef) return homeIslandRef;
+    homeIslandRef = {
+      id: 'home', __home: true,
+      boardX: 0, boardZ: 0,
+      positionX: 0, positionY: 0, positionZ: 0, rotationY: 0,
+      engines: (typeof defaultEditableIslandEngineStates === 'function') ? defaultEditableIslandEngineStates() : [],
+      baseGroup: null, group: null, contentGroup: null, lod: 'full',
+    };
+    editableIslandById.set('home', homeIslandRef);
+    return homeIslandRef;
+  }
+  // Build the home island's selectable lift engines into `parent` (the home
+  // border group). Called by addIslandRocketEngines on each home-border (re)build;
+  // engine STATES persist on homeIslandRef so upgrades survive a rebuild.
+  function buildHomeIslandEngines(parent) {
+    if (!parent || typeof buildEditableIslandEngineMesh !== 'function') return;
+    const home = ensureHomeIslandObject();
+    home.baseGroup = parent;
+    home.group = parent;
+    for (const engineState of home.engines) {
+      engineState.mesh = null;
+      engineState.propeller = null;
+      const mesh = buildEditableIslandEngineMesh(home, engineState);
+      if (mesh) parent.add(mesh);
+    }
+  }
+
   function stampEditableIslandSurface(root, island) {
     if (!root || !island) return;
     const data = {
@@ -165,7 +199,27 @@
       island.baseGroup = makeEditableIslandBase(island);
       island.group.add(island.baseGroup);
     }
-    if (!island.surfaceMesh) rebuildEditableIslandSurface(island);
+    // Parity with the home world: render the island's terrain PER-CELL (so
+    // stone/dirt/sand/etc. show like home) instead of a flat grass slab that
+    // buries painted terrain. The legacy slab is dropped.
+    ensureEditableIslandCellTiles(island);
+  }
+
+  // Render every cell of the island board as a terrain tile, exactly like the
+  // home board. Unpainted cells default to grass via getWorldCell. Rendered once
+  // and kept (hidden with contentGroup at proxy LOD), so there's no per-frame or
+  // per-LOD-transition churn. (Follow-up: dispose tiles at proxy LOD to cut the
+  // 50-island stress-demo memory footprint.)
+  function ensureEditableIslandCellTiles(island) {
+    disposeEditableIslandSurface(island); // remove the legacy grass slab
+    if (island.cellTilesRendered || typeof renderCellTile !== 'function') return;
+    const bx = island.boardX * GRID, bz = island.boardZ * GRID;
+    for (let lx = 0; lx < GRID; lx++) {
+      for (let lz = 0; lz < GRID; lz++) {
+        renderCellTile(bx + lx, bz + lz, { animate: false });
+      }
+    }
+    island.cellTilesRendered = true;
   }
 
   function releaseEditableIslandFullVisuals(island) {
@@ -438,6 +492,7 @@
   const MOORING_CABLE_RADIUS = 0.026;
   const MOORING_CABLE_SEGMENTS = 42;
   const MOORING_ROUTE_SAMPLES = 48;
+  const MOORING_HAZARD_CLEARANCE = 0.4; // extra margin when routing a cable around an engine
   const mooringCables = [];
   let mooringCableSerial = 1;
   let pendingMooringAnchor = null;
@@ -447,6 +502,7 @@
   const mooringVecB = new THREE.Vector3();
   const mooringVecC = new THREE.Vector3();
   const mooringVecD = new THREE.Vector3();
+  const mooringVecHazard = new THREE.Vector3();
 
   function mooringFiniteNumber(value, fallback = 0) {
     const n = Number(value);
@@ -531,15 +587,31 @@
     return out;
   }
 
-  function makeMooringCurve(start, end) {
+  // Push a control point out of any engine hazard so the cable routes AROUND
+  // engines instead of being blocked by them.
+  function avoidMooringHazards(point, hazards) {
+    if (!hazards || !hazards.length) return point;
+    for (const h of hazards) {
+      const d = point.distanceTo(h.center);
+      const minD = h.radius + MOORING_HAZARD_CLEARANCE;
+      if (d > 1e-4 && d < minD) {
+        mooringVecHazard.copy(point).sub(h.center).multiplyScalar((minD - d) / d);
+        point.add(mooringVecHazard);
+      }
+    }
+    return point;
+  }
+
+  function makeMooringCurve(start, end, hazards) {
+    const haz = hazards || collectMooringHazards();
     const dist = Math.max(0.01, start.distanceTo(end));
     const sag = Math.min(5.6, Math.max(0.45, dist * 0.105));
     const side = mooringVecD.set(-(end.z - start.z), 0, end.x - start.x);
     if (side.lengthSq() > 0.0001) side.normalize().multiplyScalar(Math.min(0.55, dist * 0.025));
     const p0 = start.clone();
-    const p1 = start.clone().lerp(end, 0.24).add(side).add(new THREE.Vector3(0, -sag * 0.36, 0));
-    const p2 = start.clone().lerp(end, 0.58).addScaledVector(side, -0.35).add(new THREE.Vector3(0, -sag, 0));
-    const p3 = start.clone().lerp(end, 0.83).addScaledVector(side, -0.15).add(new THREE.Vector3(0, -sag * 0.45, 0));
+    const p1 = avoidMooringHazards(start.clone().lerp(end, 0.24).add(side).add(new THREE.Vector3(0, -sag * 0.36, 0)), haz);
+    const p2 = avoidMooringHazards(start.clone().lerp(end, 0.58).addScaledVector(side, -0.35).add(new THREE.Vector3(0, -sag, 0)), haz);
+    const p3 = avoidMooringHazards(start.clone().lerp(end, 0.83).addScaledVector(side, -0.15).add(new THREE.Vector3(0, -sag * 0.45, 0)), haz);
     const p4 = end.clone();
     return new THREE.CatmullRomCurve3([p0, p1, p2, p3, p4], false, 'catmullrom', 0.32);
   }
@@ -702,9 +774,8 @@
     const end = mooringAnchorWorldPoint(b, mooringVecB);
     if (!start || !end) return { ok: false, reason: 'Mooring anchor no longer exists' };
     if (start.distanceTo(end) < 0.45) return { ok: false, reason: 'Pick a second point farther away' };
-    const curve = makeMooringCurve(start.clone(), end.clone());
-    const blocker = findMooringRouteBlocker(curve);
-    if (blocker) return { ok: false, reason: 'Cable path is blocked by a ' + blocker.label };
+    // Cables now route AROUND engine hazards (see makeMooringCurve/avoidMooringHazards)
+    // instead of being blocked by them, so there's no hazard rejection here.
     return { ok: true };
   }
 

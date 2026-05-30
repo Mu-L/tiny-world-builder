@@ -224,8 +224,19 @@
   // alternative is dark dirt panels under every path/water/edge tile,
   // which the user explicitly does not want.
   function getLevelNeighbors(x, z) {
+    // The "landmass" is the cell's own board: the home board is [0,GRID); an
+    // editable island is its own GRID-aligned board. A neighbour OUTSIDE that
+    // board is the physical perimeter (void/drop-off) -> null, which drops the
+    // riser cliff and lets water fall there. Interior neighbours (incl. unpainted
+    // default-grass island cells) return a real level, so risers cull and water
+    // does NOT fall in the interior. (Before this, island cells used the home
+    // [0,GRID) bounds, so every island neighbour read as off-board -> water fell
+    // on every interior cell too.)
+    const island = isEditableIslandCell(x, z);
+    const bx0 = island ? Math.floor(x / GRID) * GRID : 0;
+    const bz0 = island ? Math.floor(z / GRID) * GRID : 0;
     function probe(nx, nz) {
-      if (nx < 0 || nx >= GRID || nz < 0 || nz >= GRID) return null;
+      if (nx < bx0 || nx >= bx0 + GRID || nz < bz0 || nz >= bz0 + GRID) return null;
       if (!shouldRenderCellMesh(nx, nz)) return null;
       return tileLevelForCell(getWorldCell(nx, nz));
     }
