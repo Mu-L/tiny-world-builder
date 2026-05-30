@@ -145,6 +145,18 @@ if [[ -d textures ]]; then
   ' sh {} +)
 fi
 
+# Published world JSON loadable via ?world=data/<name>.json (same-origin only).
+# Optional; absent until world files are added under data/.
+if [[ -d data ]]; then
+  mkdir -p "$DIST/data"
+  (cd data && find . -type f ! -name '.DS_Store' -exec sh -c '
+    for f do
+      mkdir -p "../dist/data/$(dirname "$f")"
+      cp "$f" "../dist/data/$f"
+    done
+  ' sh {} +)
+fi
+
 # Crowd sprites referenced by the TinyCrowdLayer runtime.
 if [[ -d crowd ]]; then
   mkdir -p "$DIST/crowd"

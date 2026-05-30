@@ -41,7 +41,17 @@
     const RADIUS = 116;
     const TOP_ANGLE = 270;
 
+    // Islands are transformed as a whole (move x/y/z + rotate-y via the gizmo),
+    // so the cell-object actions (Color/Style/Size/Duplicate/More) don't apply.
+    // Show only the actions the island gizmo actually supports.
+    const ISLAND_ACTIONS = new Set(['move', 'rotate']);
+    function selectedRadialIsland() {
+      return (typeof selectedTransformGizmoIsland !== 'undefined' && selectedTransformGizmoIsland)
+        ? selectedTransformGizmoIsland : null;
+    }
+
     let currentLevel = 'root';
+    let lastIslandMode = false;
 
     const root = document.createElement('div');
     root.className = 'radial-menu';
@@ -89,7 +99,9 @@
       root.appendChild(top);
 
       if (level === 'root') {
-        ROOT.forEach((b, i) => {
+        const island = selectedRadialIsland();
+        const items = island ? ROOT.filter(b => ISLAND_ACTIONS.has(b.id)) : ROOT;
+        items.forEach((b, i) => {
           const btn = makeBtn('', iconHtml(b.icon) + '<span class="radial-label">' + b.label + '</span>', b.angle, i + 1);
           btn.title = b.label;
           btn.addEventListener('click', e => {
@@ -149,9 +161,15 @@
         if (id === 'duplicate') {
           if (typeof duplicateActiveCellIntent === 'function') duplicateActiveCellIntent();
         } else if (id === 'rotate') {
-          const sel = window.__tinyworldSelection;
-          if (sel && typeof sel.rotate === 'function') sel.rotate(Math.PI / 2);
-          else if (typeof rotateSelectedCells === 'function') rotateSelectedCells(Math.PI / 2);
+          const island = selectedRadialIsland();
+          if (island) {
+            island.rotationY = (island.rotationY || 0) + Math.PI / 2;
+            if (typeof applyEditableIslandTransform === 'function') applyEditableIslandTransform(island);
+          } else {
+            const sel = window.__tinyworldSelection;
+            if (sel && typeof sel.rotate === 'function') sel.rotate(Math.PI / 2);
+            else if (typeof rotateSelectedCells === 'function') rotateSelectedCells(Math.PI / 2);
+          }
         } else if (id === 'size') {
           if (typeof scaleSelectedBoardObject === 'function') {
             scaleSelectedBoardObject((window.event && window.event.shiftKey) ? 0.87 : 1.15);
@@ -182,10 +200,17 @@
       const m = RADIUS + 52;
       root.style.left = Math.max(m, Math.min(window.innerWidth - m, sx)) + 'px';
       root.style.top = Math.max(m, Math.min(window.innerHeight - m, sy)) + 'px';
+      const islandMode = !!selectedRadialIsland();
       if (root.hidden) {
         // Fresh appearance → reset to root ring and let the buttons spin in.
         renderLevel('root');
+        lastIslandMode = islandMode;
         root.hidden = false;
+      } else if (islandMode !== lastIslandMode) {
+        // Selection type changed under an open menu (object ↔ island) — rebuild
+        // the ring so the action set matches the new selection.
+        renderLevel('root');
+        lastIslandMode = islandMode;
       }
     }
 

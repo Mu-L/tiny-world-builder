@@ -590,7 +590,17 @@
     twPerfMark('boot:toolbar-built');
     selectTool(DEFAULT_TOOL);
     twPerfMark('boot:default-tool-selected');
-    if (!loadState()) {
+    const remoteWorldParam = sanitizeWorldUrl(getWorldUrlParam());
+    if (remoteWorldParam) {
+      // ?world=<same-origin-url>: show a placeholder scene now, then swap in the
+      // fetched world when it arrives (fetch can't resolve synchronously here).
+      twPerfMark('boot:load-world-url');
+      loadInitialScene();
+      resetCameraDefaults();
+      loadWorldFromUrl(remoteWorldParam).then((ok) => {
+        if (ok && worldHistoryReady) { refreshWorldHistoryUI(); ensureGhostBoardsAroundTarget(); }
+      });
+    } else if (!loadState()) {
       twPerfMark('boot:load-state-empty');
       loadInitialScene();
       resetCameraDefaults();
