@@ -178,7 +178,7 @@
   // ---- target HUD pool ----
   const HUD_TARGET_LIMIT = 6;
   const hudPool = [];
-  let lockId = ''; // set by the lock system in a later task
+  let lockId = ''; // set by the lock system below
   function ensureHudPool() {
     if (hudPool.length || !overlayEl) return;
     for (let i = 0; i < HUD_TARGET_LIMIT; i++) {
@@ -269,6 +269,54 @@
     reticleEl.style.top = reticleState.y + 'px';
   }
 
+  // ---- lock ----
+  let lockAmount = 0;        // 0..1
+  let lockCandidateId = '';
+  const LOCK_TIME = 1.1;     // seconds on-target to full lock
+  const _lpos = new THREE.Vector3();
+  const _lproj = new THREE.Vector3();
+  function updateLock(dt) {
+    // nearest target to the reticle in screen space, in front of camera
+    let best = null, bestD = Infinity;
+    for (const tgt of targets) {
+      tgt.getWorldPos(_lpos); _lproj.copy(_lpos).project(camera);
+      if (_lproj.z > 1) continue;
+      const sx = (_lproj.x * 0.5 + 0.5) * window.innerWidth;
+      const sy = (-_lproj.y * 0.5 + 0.5) * window.innerHeight;
+      const d = Math.hypot(sx - reticleState.x, sy - reticleState.y);
+      if (d < bestD && d < 120) { bestD = d; best = tgt; }
+    }
+    if (best && best.id === lockCandidateId) {
+      lockAmount = Math.min(1, lockAmount + dt / LOCK_TIME);
+    } else {
+      lockCandidateId = best ? best.id : '';
+      lockAmount = best ? Math.max(0, lockAmount - dt / LOCK_TIME) : 0;
+    }
+    lockId = lockAmount >= 1 ? lockCandidateId : '';
+    updateLockTone(lockAmount, !!best);
+  }
+
+  let _lockAudioCtx = null, _lockToneOsc = null, _lockToneGain = null;
+  function updateLockTone(amount, hasCandidate) {
+    if (!hasCandidate || amount <= 0.02) { stopLockTone(); return; }
+    try {
+      if (!_lockAudioCtx) _lockAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!_lockToneOsc) {
+        _lockToneOsc = _lockAudioCtx.createOscillator();
+        _lockToneGain = _lockAudioCtx.createGain();
+        _lockToneOsc.type = 'square';
+        _lockToneGain.gain.value = 0.0;
+        _lockToneOsc.connect(_lockToneGain).connect(_lockAudioCtx.destination);
+        _lockToneOsc.start();
+      }
+      _lockToneOsc.frequency.value = 420 + amount * 520;
+      _lockToneGain.gain.value = amount >= 1 ? 0.05 : 0.02;
+    } catch (_) { /* no audio: silent */ }
+  }
+  function stopLockTone() {
+    if (_lockToneGain) { try { _lockToneGain.gain.value = 0; } catch (_) {} }
+  }
+
   function onEnter(flyingJet) {
     jet = flyingJet || window.__flightJet || null;
     active = true;
@@ -279,11 +327,14 @@
     ensureHudPool();
     reticleState.init = false;
     muzzlesReady = deriveMuzzles();
+    lockAmount = 0; lockCandidateId = ''; lockId = '';
   }
 
   function onExit() {
     active = false;
     jet = null;
+    stopLockTone();
+    lockAmount = 0; lockCandidateId = ''; lockId = '';
     for (const slot of hudPool) { slot.bracket.style.display = 'none'; slot.card.style.display = 'none'; }
   }
 
@@ -300,6 +351,7 @@
     }
     updateTracers(dt);
     updateReticle(dt);
+    updateLock(dt);
     updateTargetHud();
   }
 
@@ -314,6 +366,15 @@
       reticle_x: reticleState.x,
       reticle_y: reticleState.y,
       targetCount: targets.length,
+      target_lock: lockAmount,
+      target_lock_label: (function(){ const tg = targets.find(t => t.id === lockCandidateId); return tg ? tg.label() : ''; })(),
+      target_lock_distance: (function(){
+        const tg = targets.find(t => t.id === lockCandidateId);
+        if (!tg) return null;
+        const cp = new THREE.Vector3(); camera.getWorldPosition(cp);
+        const tp = new THREE.Vector3(); tg.getWorldPos(tp);
+        return +cp.distanceTo(tp).toFixed(1);
+      })(),
     };
   }
 
