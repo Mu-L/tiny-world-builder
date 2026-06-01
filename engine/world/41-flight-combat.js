@@ -17,6 +17,50 @@
   let active = false;
   let jet = null; // window.__flightJet while flying
 
+  // ---- target adapter ----
+  // Uniform target interface so guns/missiles/HUD never special-case kinds:
+  //   { id, kind, getWorldPos(out), radius, isAlive(), label(), speedKts(),
+  //     applyDamage(amount, hitScenePos, source) }
+  const targets = [];                 // rebuilt each frame
+  const _prevGhostPos = new Map();    // id -> THREE.Vector3 (last frame) for speed est
+
+  function makeGhostTarget(g, dt) {
+    const pos = new THREE.Vector3();
+    g.group.getWorldPosition(pos);
+    let speed = 0;
+    const prev = _prevGhostPos.get(g.id);
+    if (prev && dt > 0) speed = prev.distanceTo(pos) / dt;
+    if (prev) prev.copy(pos); else _prevGhostPos.set(g.id, pos.clone());
+    return {
+      id: 'ghost:' + g.id,
+      kind: 'player',
+      _pos: pos,
+      getWorldPos(out) { return (out || new THREE.Vector3()).copy(this._pos); },
+      radius: 1.6,
+      isAlive() { return true; }, // players don't die locally; handled by hit messaging later
+      label() { return 'PLAYER'; },
+      speedKts() { return speed * 1.94; },
+      applyDamage(amount, hitPos, source) { onHitPlayer(g.id, amount, source); },
+    };
+  }
+
+  function onHitPlayer(/* peerId, amount, source */) { /* implemented in a later task */ }
+
+  function collectTargets(dt) {
+    targets.length = 0;
+    const mp = window.__tinyworldMultiplayer;
+    if (mp && typeof mp.flightGhosts === 'function') {
+      const ghosts = mp.flightGhosts();
+      for (const g of ghosts) targets.push(makeGhostTarget(g, dt));
+      // prune stale speed-estimate entries for ghosts that vanished
+      if (_prevGhostPos.size > ghosts.length + 4) {
+        const live = new Set(ghosts.map(g => g.id));
+        for (const id of Array.from(_prevGhostPos.keys())) if (!live.has(id)) _prevGhostPos.delete(id);
+      }
+    }
+    // world-cell targets appended in a later task
+  }
+
   // ---- tracers ----
   const TRACER_POOL = 48;
   const TRACER_SPEED = 46;     // scene units/sec
@@ -188,6 +232,7 @@
     if (!active || !(dt > 0)) return;
     fireCooldown = Math.max(0, fireCooldown - dt);
     if (!muzzlesReady) muzzlesReady = deriveMuzzles();
+    collectTargets(dt);
     const keys = window.__flightKeys || {};
     const firing = !!keys['Space'] || !!window.__flightFireHeld;
     if (firing && fireCooldown <= 0) {
@@ -208,6 +253,7 @@
       muzzleR: jet ? jet.localToWorld(gunMuzzleR.clone()).toArray() : null,
       reticle_x: reticleState.x,
       reticle_y: reticleState.y,
+      targetCount: targets.length,
     };
   }
 
