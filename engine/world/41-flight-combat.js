@@ -90,13 +90,43 @@
   function attemptInstantHit(origin, dir) { /* implemented in a later task */ }
 
   // ---- bbox-derived muzzle offsets ----
-  // NOTE: bbox.setFromObject yields world-space extents (jet scale already
-  // applied). gunMuzzleL/R are treated as jet-local offsets and converted via
-  // jet.localToWorld in fireGuns — valid approximation assuming jet local axes
-  // are roughly world-aligned at size measurement time.
-  // If browser check shows tracers spawning behind the plane, flip noseZ sign.
+  // _bbox yields WORLD-space extents. Because fireGuns uses jet.localToWorld
+  // (which re-applies the jet's world scale), we convert the world extents to
+  // LOCAL units by dividing out that scale before storing them as offsets.
+  // deriveMuzzles() also guards the GLB load race: a not-yet-loaded model gives
+  // a tiny placeholder box (<0.3 world units); in that case it returns false and
+  // tick() retries each frame until the real geometry is present.
   const _bbox = new THREE.Box3();
   const _bsize = new THREE.Vector3();
+  const _bscale = new THREE.Vector3();
+  let muzzlesReady = false;
+
+  function deriveMuzzles() {
+    if (!jet) return false;
+    jet.updateMatrixWorld(true);
+    _bbox.setFromObject(jet);
+    if (_bbox.isEmpty()) return false;
+    _bbox.getSize(_bsize);
+    // Guard the load race: a not-yet-loaded GLB gives a tiny placeholder box.
+    const maxDim = Math.max(_bsize.x, _bsize.y, _bsize.z);
+    if (maxDim < 0.3) return false; // model not loaded yet; retry next tick
+    // _bsize is WORLD size; convert to LOCAL units by dividing out the jet's
+    // world scale, because fireGuns applies jet.localToWorld (which re-applies
+    // that scale). Storing world-size as a local offset would double-count it.
+    jet.getWorldScale(_bscale);
+    const localX = _bsize.x / (Math.abs(_bscale.x) || 1);
+    const localY = _bsize.y / (Math.abs(_bscale.y) || 1);
+    const localZ = _bsize.z / (Math.abs(_bscale.z) || 1);
+    // jet carries FLIGHT_MODEL_FWD_FIX so the VISUAL nose is +Z in jet-local.
+    // Muzzles sit out along local X (wings), toward the visual nose (+Z),
+    // slightly below center.
+    const halfSpan = localX * 0.5 * 0.62;
+    const noseZ = localZ * 0.5 * 0.55;
+    const dropY = -localY * 0.05;
+    gunMuzzleL.set(-halfSpan, dropY, noseZ);
+    gunMuzzleR.set(halfSpan, dropY, noseZ);
+    return true;
+  }
 
   // ---- HUD overlay + reticle ----
   let overlayEl = null, reticleEl = null;
@@ -146,18 +176,7 @@
     ensureTracerPool();
     ensureOverlay();
     reticleState.init = false;
-    if (jet) {
-      jet.updateMatrixWorld(true);
-      _bbox.setFromObject(jet);
-      _bbox.getSize(_bsize);
-      // jet carries FLIGHT_MODEL_FWD_FIX so the VISUAL nose is +Z in jet-local.
-      // Muzzles sit out along local X (wings) and toward the visual nose (+Z).
-      const halfSpan = (_bsize.x * 0.5) * 0.62;
-      const noseZ = (_bsize.z * 0.5) * 0.55;
-      const dropY = -_bsize.y * 0.05;
-      gunMuzzleL.set(-halfSpan, dropY, noseZ);
-      gunMuzzleR.set(halfSpan, dropY, noseZ);
-    }
+    muzzlesReady = deriveMuzzles();
   }
 
   function onExit() {
@@ -168,6 +187,7 @@
   function tick(dt) {
     if (!active || !(dt > 0)) return;
     fireCooldown = Math.max(0, fireCooldown - dt);
+    if (!muzzlesReady) muzzlesReady = deriveMuzzles();
     const keys = window.__flightKeys || {};
     const firing = !!keys['Space'] || !!window.__flightFireHeld;
     if (firing && fireCooldown <= 0) {
