@@ -24,8 +24,13 @@ function userFromIdentityPayload(payload) {
 async function userFromBearerToken(request) {
   const token = bearerToken(request);
   if (!token) return null;
+  // Resolve the identity verify host from trusted deploy config rather than the
+  // incoming request URL so the validation target can never come from request
+  // data. Fail closed when the site URL is unset.
+  const identityBase = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
+  if (!identityBase) return null;
   try {
-    const identityUrl = new URL('/.netlify/identity/user', request.url);
+    const identityUrl = new URL('/.netlify/identity/user', identityBase);
     const res = await fetch(identityUrl, {
       headers: { Authorization: 'Bearer ' + token },
     });

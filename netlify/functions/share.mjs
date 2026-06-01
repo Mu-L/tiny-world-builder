@@ -6,6 +6,10 @@ import { ensureProfile } from './lib/profiles.mjs';
 
 export const config = { path: '/api/share' };
 
+// Per-profile ceiling on stored public share records to bound authenticated
+// storage growth; each row is already size-capped (~2 MB).
+const MAX_SHARES_PER_PROFILE = 500;
+
 function makeShareId() {
   return randomBytes(9).toString('base64url');
 }
@@ -91,6 +95,13 @@ export default async function shareFunction(request) {
       name = name || 'Tiny World';
       const dataError = validateWorldData(data);
       if (dataError) return errorResponse(dataError, 400, origin);
+
+      const countRows = await sql`
+        SELECT count(*) AS n FROM world_shares WHERE profile_id = ${profile.id}
+      `;
+      if (Number(countRows[0].n) >= MAX_SHARES_PER_PROFILE) {
+        return errorResponse('Share limit reached', 429, origin);
+      }
 
       const share = await createShare(sql, {
         ownerAuthId: auth.user.id,

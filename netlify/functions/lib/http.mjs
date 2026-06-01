@@ -1,10 +1,23 @@
+// -------- cors allowlist --------
+// Reflect the caller Origin only when it matches the deployed site URL (prod +
+// branch/deploy previews) or localhost for dev; otherwise omit the header. We
+// never emit Access-Control-Allow-Credentials, so a missing ACAO simply blocks
+// the cross-origin read rather than leaking it.
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  const siteOrigins = [process.env.URL, process.env.DEPLOY_PRIME_URL, process.env.DEPLOY_URL].filter(Boolean);
+  if (siteOrigins.includes(origin)) return true;
+  return /^http:\/\/localhost(:\d+)?$/.test(origin);
+}
+
 export function corsHeaders(origin) {
-  return {
-    'Access-Control-Allow-Origin': origin || '*',
+  const headers = {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Vary': 'Origin',
   };
+  if (isAllowedOrigin(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
 }
 
 export function corsResponse(origin) {

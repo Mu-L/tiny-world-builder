@@ -5,6 +5,10 @@ import { ensureProfile } from './lib/profiles.mjs';
 
 export const config = { path: '/api/builds' };
 
+// Per-profile ceiling on stored cloud worlds. Each row is already size-capped
+// (~2 MB) but row count was unbounded; reject new inserts past this limit.
+const MAX_BUILDS_PER_PROFILE = 500;
+
 function buildDto(row, includeData = false) {
   const out = {
     id: row.id,
@@ -73,6 +77,12 @@ export default async function buildsFunction(request) {
       const body = await readJson(request);
       const input = validateBuildPayload(body);
       if (input.error) return errorResponse(input.error, 400, origin);
+      const countRows = await sql`
+        SELECT count(*) AS n FROM builds WHERE profile_id = ${profile.id}
+      `;
+      if (Number(countRows[0].n) >= MAX_BUILDS_PER_PROFILE) {
+        return errorResponse('Cloud world limit reached', 429, origin);
+      }
       const rows = await sql`
         INSERT INTO builds (profile_id, name, data)
         VALUES (${profile.id}, ${input.name}, ${sql.json(input.data)})
