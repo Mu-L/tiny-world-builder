@@ -1,13 +1,16 @@
   // -------- prelude (hoisted pure utils) --------
-  // Inspector v2 (extended object inspector) — opt-in while it stabilises.
-  // Resolved once at boot from ?inspectorV2=1 or localStorage.
+  // Inspector v2 (extended object inspector) — ON by default. The extended
+  // material/colour/lighting/precise-transform rows + sub-object (parts/sculpt/
+  // explode) editing are the editor; opt OUT with ?inspectorV2=0 or the stored
+  // flag set to '0'.
   try {
     const qs = new URLSearchParams(location.search);
     const stored = localStorage.getItem('tinyworld:flags.inspectorV2');
+    const optedOut = qs.get('inspectorV2') === '0' || stored === '0';
     window.__tinyworldFlags = window.__tinyworldFlags || {};
-    window.__tinyworldFlags.inspectorV2 = qs.get('inspectorV2') === '1' || stored === '1';
+    window.__tinyworldFlags.inspectorV2 = !optedOut;
   } catch (_) {
-    window.__tinyworldFlags = window.__tinyworldFlags || { inspectorV2: false };
+    window.__tinyworldFlags = window.__tinyworldFlags || { inspectorV2: true };
   }
 
   // Relocated here from module 28 so they are defined before any later
