@@ -25,7 +25,7 @@
     function injectStyles() {
       if (document.getElementById('tw-worlds-hud-style')) return;
       const css = `
-  .tw-hud{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:66;display:none;
+  .tw-hud{position:fixed;left:50%;bottom:calc(14px + var(--tw-worlds-bottom-inset,0px));transform:translateX(-50%);z-index:66;display:none;
     align-items:center;gap:12px;background:#0c1424e6;border:1px solid rgba(255,255,255,.18);
     border-radius:14px;padding:10px 14px;color:#eef3ff;font-family:system-ui}
   .tw-hud.open{display:flex}
@@ -36,7 +36,7 @@
   .tw-hud .act:disabled{opacity:.4;cursor:not-allowed}
   .tw-hud .leave{background:rgba(255,255,255,.12)}
   .tw-hud .role{font:600 11px system-ui;text-transform:uppercase;letter-spacing:.05em;opacity:.7}
-  .tw-chat{position:fixed;right:12px;bottom:14px;z-index:66;display:none;flex-direction:column;width:260px;
+  .tw-chat{position:fixed;right:12px;bottom:calc(14px + var(--tw-worlds-bottom-inset,0px));z-index:66;display:none;flex-direction:column;width:260px;
     background:#0c1424e6;border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;font-family:system-ui}
   .tw-chat.open{display:flex}
   .tw-chat .log{height:140px;overflow:auto;padding:8px;font-size:12px;display:flex;flex-direction:column;gap:3px}

@@ -92,7 +92,7 @@
         emit('status', { connected: true });
         // If the room never answers with world.state, it's an un-upgraded server.
         if (stateTimer) clearTimeout(stateTimer);
-        stateTimer = setTimeout(() => { if (!sawWorldState) toast(T('worlds.serverOld')); }, 4000);
+        stateTimer = setTimeout(() => { if (!sawWorldState) { toast(T('worlds.serverOld')); WS.leaveRoom(); } }, 4000);
       });
       socket.addEventListener('close', () => { connected = false; emit('status', { connected: false }); });
       socket.addEventListener('message', (e) => { const d = safeParse(e.data); if (d) onMessage(d); });
@@ -118,8 +118,9 @@
       switch (d.type) {
         case 'welcome':
           myId = d.id || myId; role = d.role || role; emit('status', { connected: true, role });
-          // An upgraded world server flags the welcome; an old collab server does not.
-          if (d.world !== true) { sawWorldState = true; toast(T('worlds.serverOld')); }
+          // An upgraded world server flags the welcome; an old collab server does
+          // not — bail out so the minimap/HUD don't linger over the builder.
+          if (d.world !== true) { sawWorldState = true; toast(T('worlds.serverOld')); WS.leaveRoom(); }
           break;
         case 'world.state':
           sawWorldState = true;
@@ -235,7 +236,7 @@
     function showMinimap() {
       if (mapWrap) { mapWrap.style.display = 'block'; drawMinimap(); return; }
       if (!document.getElementById('tw-worlds-map-style')) {
-        const css = '.tw-worlds-map{position:fixed;right:12px;top:64px;z-index:65;background:#0c1424cc;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px}'
+        const css = '.tw-worlds-map{position:fixed;left:12px;bottom:calc(86px + var(--tw-worlds-bottom-inset,0px));z-index:65;background:#0c1424cc;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px}'
           + '.tw-worlds-map h4{margin:0 0 6px;font:600 11px system-ui;color:#cfe0ff;text-transform:uppercase;letter-spacing:.05em}'
           + '.tw-worlds-map canvas{display:block;border-radius:6px;cursor:pointer;background:#13243f}';
         document.head.appendChild(Object.assign(document.createElement('style'), { id: 'tw-worlds-map-style', textContent: css }));

@@ -38,7 +38,7 @@
     function injectStyles() {
       if (document.getElementById('tw-worlds-style')) return;
       const css = `
-  .tw-worlds-launch{position:fixed;left:12px;bottom:12px;z-index:60;display:flex;gap:6px;align-items:center;
+  .tw-worlds-launch{position:fixed;left:12px;bottom:calc(12px + var(--tw-worlds-bottom-inset,0px));z-index:60;display:flex;gap:6px;align-items:center;
     padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);cursor:pointer;
     background:linear-gradient(135deg,#1f6feb,#0a3fb8);color:#fff;font:600 13px/1 system-ui,sans-serif;
     box-shadow:0 6px 18px rgba(0,0,0,.35)}
@@ -73,7 +73,7 @@
   .tw-modal label{display:block;font-size:12px;opacity:.8;margin:10px 0 4px}
   .tw-modal input{width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-size:14px}
   .tw-modal-row{display:flex;gap:8px;margin-top:16px}
-  .tw-draftbar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:70;display:flex;gap:8px;
+  .tw-draftbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--tw-worlds-bottom-inset,0px));z-index:70;display:flex;gap:8px;
     background:#10182bdd;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px;align-items:center}
   .tw-draftbar span{font:600 12px system-ui;color:#ffd690;padding:0 6px}
   `;
@@ -278,10 +278,24 @@
       else toast(T('worlds.error'));
     }
   
+    // Netlify deploy previews (and embeds) add a bottom bar/iframe chrome that
+    // covers fixed bottom UI. Reserve clearance via a CSS var the worlds widgets
+    // add to their bottom offset; 0 on the normal app.
+    function applyBottomInset() {
+      let inset = '0px';
+      try {
+        const host = location.hostname || '';
+        const embedded = window.top !== window.self;
+        if (embedded || /deploy-preview|--[a-z0-9-]+\.netlify\.app$|netlify\.live$/i.test(host)) inset = '64px';
+      } catch (_) { inset = '64px'; }
+      document.documentElement.style.setProperty('--tw-worlds-bottom-inset', inset);
+    }
+
     // ---- launcher button ----
     function addLauncher() {
       if (document.querySelector('.tw-worlds-launch')) return;
       injectStyles();
+      applyBottomInset();
       document.body.appendChild(el('button', { class: 'tw-worlds-launch', title: T('worlds.launch'), onclick: openOverlay }, ['🌍 ', T('worlds.launch')]));
     }
   
