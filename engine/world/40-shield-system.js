@@ -56,7 +56,15 @@
             child.visible = false;
             child.intensity = 0;
           } else {
-            child.visible = p > 0.015;
+            // Drive .visible from the de-flickered deploy power, NOT p (which
+            // includes the per-frame flicker). Toggling a PointLight's .visible
+            // every frame changes the scene's visible-light count, and three.js
+            // r128 recompiles every lit material's shader program on each
+            // distinct count — those programs are cached and never evicted, so
+            // the flicker churned the program cache up (~27 -> 260 measured) and
+            // tanked the framerate during deploy. The visual flicker is still
+            // carried by intensity + emissiveIntensity below.
+            child.visible = shieldClamp01(power) > 0.015;
             child.intensity = child.userData.baseIntensity * p;
           }
         }
