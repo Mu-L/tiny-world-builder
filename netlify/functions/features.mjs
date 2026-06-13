@@ -78,6 +78,11 @@ function envValue(name) {
 }
 
 function isAdmin(request) {
+  // Admin actions are LOCAL-DEV ONLY. Never grant admin on a non-local host.
+  try {
+    const host = (request.headers.get('host') || '').toLowerCase();
+    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return false;
+  } catch (_) { return false; }
   const secret = envValue('TINYWORLD_ADMIN_SECRET');
   if (!secret) return false;
   return (request.headers.get('x-admin-secret') || '') === secret;
