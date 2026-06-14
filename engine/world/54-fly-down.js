@@ -254,6 +254,8 @@
       window.__flyDownActive = true;
       // Crisp the planet (drop the distant-backdrop desaturation/fog) now that we're close.
       if (typeof window.__setPlanetLandscapeNearView === 'function') window.__setPlanetLandscapeNearView(true);
+      // Show the actual voxel-poser island+sea surface (hides the streaming underlay).
+      if (window.__tinyworldPoserSurface) window.__tinyworldPoserSurface.show();
       beginEase('descend');
       return true;
     }
@@ -264,6 +266,8 @@
       window.__flyDownActive = true;
       // Restore the distant-backdrop look as we climb back to the island layer.
       if (typeof window.__setPlanetLandscapeNearView === 'function') window.__setPlanetLandscapeNearView(false);
+      // Hide the poser surface + restore the streaming underlay.
+      if (window.__tinyworldPoserSurface) window.__tinyworldPoserSurface.hide();
       beginEase('ascend');
       return true;
     }

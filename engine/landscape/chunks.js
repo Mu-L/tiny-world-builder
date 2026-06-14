@@ -275,7 +275,11 @@
       const cxW = (cx + 0.5) * size, czW = (cz + 0.5) * size;
       const group = new THREE.Group();
       group.position.set(cxW, 0, czW);
-      if (!this.voxelMat) this.voxelMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      // fog:false — the scene's near distanceMistFog (far~100) would wash the
+      // 1/25-scaled planet surface cream; the cloud-sea veil (faded to 0 on
+      // descent, opaque up top) is what provides the sky<->surface separation,
+      // so the voxel ground reads crisp + colourful like voxel-poser.
+      if (!this.voxelMat) this.voxelMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false });
       const cell = size / res, step = cell, half = size / 2;
       const seabed = this.WATER_LEVEL - step;          // flat seabed one block under the waterline
       const N = res + 2;                               // +1-cell border for neighbour wall lookups
