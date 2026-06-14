@@ -182,8 +182,63 @@
       };
     }
 
-    const BUILDERS = { voyager: buildVoyager, portal: buildPortal, rings: buildRings };
-    function build(style) { return (BUILDERS[style] || buildVoyager)(); }
+    // ============================ STYLE: nested ============================
+    // The composite: voxel STONE ring as the outer casing, the smooth metallic ring
+    // lining the inside of its opening, the white energy hoops within that, and the
+    // dark event-horizon recessed in the centre. Layers nest like a real ornate gate.
+    function buildNested() {
+      const vs = 0.05, g = new THREE.Group();
+      const HJ = (x, y, z) => { let h = (x * 374761 + y * 668265 + z * 9301) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967296; };
+      const STONE = ['#8c8f96', '#7d818a', '#969aa2', '#85888f'];
+      // CY = RAD + 1 puts the opening BOTTOM ~at the ground so a person (avatar ~0.5
+      // tall) can walk THROUGH the gate; the lower stone arc emerges from a base slab.
+      const RAD = 15, RING = 5, TH = 3, CY = RAD + 1; const OR = RAD * vs;
+      const M = new Map();
+      for (let y = -(RAD + RING + 1); y <= RAD + RING + 1; y++) for (let x = -(RAD + RING + 1); x <= RAD + RING + 1; x++) {
+        if (y + CY < 0) continue;                 // don't bury the lower arc too deep below the base
+        const rr = Math.hypot(x, y); if (rr < RAD || rr > RAD + RING) continue;
+        const band = (rr - RAD) / RING; const prof = Math.sin(band * Math.PI); const dz = Math.max(1, Math.round(TH * (0.45 + 0.55 * prof)));
+        for (let z = -dz; z <= dz; z++) {
+          let c; const inner = rr < RAD + 1.2;
+          const chevron = (Math.round(Math.atan2(y, x) / (Math.PI * 2) * 36) % 4 === 0) && band > 0.35 && band < 0.85;
+          if (inner && Math.abs(z) <= 1) c = '#2b3138'; else if (chevron && z === 0) c = '#caa23a'; else c = STONE[(Math.abs(x * 7 + y * 13 + z * 3)) % 4];
+          vox(M, x, y + CY, z, HJ(x, y, z) <= 0.5 ? shade(c, 0.78) : c);
+        }
+      }
+      for (let q = 0; q < 6; q++) { const a = q / 6 * Math.PI * 2, rr = RAD + RING - 1; const cxv = Math.round(Math.cos(a) * rr), cyv = Math.round(Math.sin(a) * rr); if (cyv + CY < 0) continue; for (let k = 0; k < 3; k++) vox(M, cxv, cyv + CY + (k - 1), TH, '#7fe6ff'); }
+      for (let x = -8; x <= 8; x++) for (let z = -3; z <= 3; z++) vox(M, x, 0, z, '#6f7480');   // base slab people stand on
+      const frame = new THREE.Mesh(voxGeo(M, 0, 0, 0, vs), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide }));
+      frame.castShadow = frame.receiveShadow = true; g.add(frame);
+      const cyW = CY * vs;
+      // smooth metallic ring lining the inside of the stone opening
+      const metal = new THREE.Mesh(new THREE.TorusGeometry(OR * 0.82, vs * 1.4, 16, 64), new THREE.MeshStandardMaterial({ color: 0x33424f, roughness: 0.3, metalness: 0.9, side: THREE.DoubleSide }));
+      metal.position.set(0, cyW, 0); g.add(metal);
+      const metal2 = new THREE.Mesh(new THREE.TorusGeometry(OR * 0.68, vs * 0.55, 12, 64), new THREE.MeshStandardMaterial({ color: 0x9fb4c4, roughness: 0.22, metalness: 0.95, side: THREE.DoubleSide }));
+      metal2.position.set(0, cyW, 0); g.add(metal2);
+      // white energy hoops inside the metal ring
+      const hoops = []; const hcols = [0xeafcff, 0x9fe3ff, 0x59c8ff];
+      for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.TorusGeometry(OR * (0.58 - i * 0.12), vs * (0.4 + i * 0.08), 8, 56), new THREE.MeshBasicMaterial({ color: hcols[i], transparent: true, opacity: 0.7 - i * 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.position.set(0, cyW, vs * (0.3 - i * 0.15)); g.add(m); hoops.push(m); }
+      // dark event-horizon recessed behind + cyan shimmer veil in front
+      const horizon = new THREE.Mesh(new THREE.CircleGeometry(OR * 0.74, 48), new THREE.MeshBasicMaterial({ color: 0x081016, transparent: true, opacity: 0.92, depthWrite: false, side: THREE.DoubleSide }));
+      horizon.position.set(0, cyW, -vs * 1.0); g.add(horizon);
+      const veil = new THREE.Mesh(new THREE.CircleGeometry(OR * 0.72, 48), new THREE.MeshBasicMaterial({ color: 0x59d8ff, transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      veil.position.set(0, cyW, vs * 0.5); g.add(veil);
+      const light = new THREE.PointLight(0x6fd8ff, 0.9, 6); light.position.set(0, cyW, 0.4); g.add(light);
+      return {
+        group: g, centerY: cyW, openR: OR * 0.66,
+        update(t) {
+          hoops[0].rotation.z = t * 0.7; hoops[1].rotation.z = -t * 1.0; hoops[2].rotation.z = t * 1.4;
+          const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
+          veil.material.opacity = 0.16 + pulse * 0.3; veil.scale.setScalar(1 + pulse * 0.02);
+          horizon.material.opacity = 0.85 + pulse * 0.12;
+          hoops.forEach((h, i) => { h.material.opacity = (0.7 - i * 0.12) * (0.6 + pulse * 0.5); });
+          light.intensity = 0.6 + pulse * 0.9;
+        },
+      };
+    }
+
+    const BUILDERS = { nested: buildNested, voyager: buildVoyager, portal: buildPortal, rings: buildRings };
+    function build(style) { return (BUILDERS[style] || buildNested)(); }
 
     // ---- demo: place all three side by side so you can compare ----
     let demo = null, raf = null, t0 = null;
