@@ -71,15 +71,15 @@
     }
 
     // Build a feature-cam spec { base, camPos, look, opts } from a world cell — a low
-    // camera set back and below, looking up at the feature (the Truman framing).
+    // camera tucked near the subject and aimed up/out for hidden Truman-style framing.
     function cellCamSpec(base, cell, offX) {
       const wp = cellWorld(cell.x, cell.z);
       const gy = groundY(cell.x, cell.z);
       return {
         base,
-        camPos: new THREE.Vector3(wp.x + offX, gy + 2.4, wp.z + 1.6),
-        look: new THREE.Vector3(wp.x, gy + 0.5, wp.z),
-        opts: { fov: 48, sweep: { yaw: 0.55, pitch: 0.1, speed: 0.34 } },
+        camPos: new THREE.Vector3(wp.x + offX, gy + 0.35, wp.z + 1.6),
+        look: new THREE.Vector3(wp.x, gy + 2.6, wp.z),
+        opts: { fov: 58, sweep: { yaw: 0.55, pitch: 0.14, speed: 0.34 } },
       };
     }
 

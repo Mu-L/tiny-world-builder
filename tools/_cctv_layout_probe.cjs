@@ -7,15 +7,27 @@ const path = require('path');
 // --- minimal THREE stub ---
 class V3 {
   constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
   copy(o) { this.x = o.x; this.y = o.y; this.z = o.z; return this; }
   distanceTo(o) { return Math.hypot(this.x - o.x, this.y - o.y, this.z - o.z); }
 }
 class Group {
-  constructor() { this.position = new V3(); this.rotation = { x: 0, y: 0, z: 0 }; this.userData = {}; this.parent = null; this.name = ''; }
-  add() {} 
+  constructor() { this.children = []; this.position = new V3(); this.rotation = { x: 0, y: 0, z: 0 }; this.userData = {}; this.parent = null; this.name = ''; }
+  add(o) { this.children.push(o); if (o) o.parent = this; }
+  remove(o) { this.children = this.children.filter((c) => c !== o); if (o) o.parent = null; }
   lookAt() { this._lookedAt = true; }   // flag so we can detect tilt
 }
-const THREE = { Vector3: V3, Group, Box3: class { setFromObject() { return { max: { y: 0 } }; } } };
+class Mesh extends Group {
+  constructor() { super(); this.castShadow = false; this.receiveShadow = false; }
+}
+const THREE = {
+  Vector3: V3,
+  Group,
+  Mesh,
+  BoxGeometry: class {},
+  MeshStandardMaterial: class {},
+  Box3: class { setFromObject() { return { max: { y: 0 } }; } },
+};
 
 // --- capture every monitor built/placed ---
 const built = [];
@@ -53,12 +65,14 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'engine', 'world', '63-cc
 // the file wraps its IIFE in 4-space indent; eval as-is
 eval(src);
 
-// intercept mount via the public placement API: just run setup()
+// intercept mount via the public placement API: run once to verify setup does not throw,
+// then clear and re-run with buildMonitor capture enabled for deterministic inspection.
 global.window.__tinyworldCCTVPlacement.setup();
 
 // after setup, inspect mounted monitors via the parent.add calls — but our Group.add
-// is a no-op, so instead re-run buildMonitor capture: patch and re-run.
+// only tracks scene children, so instead re-run with buildMonitor capture enabled.
 built.length = 0;
+addedCams.length = 0;
 const origBuild = CCTV.buildMonitor;
 CCTV.buildMonitor = function (feed, opts) {
   const g = origBuild(feed, opts);
