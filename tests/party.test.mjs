@@ -19,10 +19,11 @@ import TinyWorldParty, {
 import { normalizeWorldSelectionGateData, signJoinToken, worldPreview } from '../netlify/functions/lib/worlds.mjs';
 
 // ---- mock PartyKit room + connections ----------------------------------
-function makeRoom() {
+function makeRoom(env = {}) {
   const conns = new Map();
   return {
     id: 'room-test',
+    env,
     conns,
     getConnection: (id) => conns.get(id) || null,
     // The server narrows to broadcastToAdmitted (per-connection send); room
@@ -441,6 +442,49 @@ test('verifyJoinTokenWeb accepts a valid signed token and rejects tampering', as
 });
 
 // ====================== Worlds MMO room behavior ========================
+
+test('signed world join loads the full 20x20 world through the service token', async () => {
+  const room = makeRoom({
+    WORLDS_JOIN_SECRET: 'sekret',
+    WORLDS_SERVICE_TOKEN: 'service-token',
+    URL: 'https://tinyworld.test',
+  });
+  room.id = 'world-big-island';
+  const party = new TinyWorldParty(room);
+  const player = room.addConn('p1');
+  party.onConnect(player);
+  const oldFetch = globalThis.fetch;
+  let fetched = null;
+  globalThis.fetch = async (url, init) => {
+    fetched = { url: String(url), headers: (init && init.headers) || {} };
+    return new Response(JSON.stringify({
+      world: {
+        id: 77,
+        slug: 'big-island',
+        status: 'published',
+        gridSize: 20,
+        taxPercent: 0,
+        data: { v: 4, gridSize: 20, cells: [[10, 10, 'grass', 'stargate'], [19, 19, 'stone']] },
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const token = signJoinToken({ w: 77, slug: 'big-island', p: 7, r: 'play' }, 'sekret', 60_000);
+    await party.onWorldMessage({ type: 'world.join', token, worldId: 77, gridSize: 20, cells: [[1, 1, 'grass']] }, player);
+    assert.equal(fetched.url, 'https://tinyworld.test/api/worlds?id=77');
+    assert.equal(fetched.headers['x-worlds-token'], 'service-token');
+    assert.equal(party.worldState.gridSize, 20);
+    assert.ok(party.worldState.grassCells.includes('18,18'), '20x20 walk grid includes cells beyond 8x8');
+    const state = player.received.find(m => m.type === 'world.state');
+    assert.equal(state.gridSize, 20);
+    assert.equal(state.you.x, 10);
+    assert.equal(state.you.z, 10);
+    assert.equal(state.you.hearts, HEART_MAX);
+    assert.equal(state.you.role, 'play');
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
 
 function worldSetup() {
   const room = makeRoom();

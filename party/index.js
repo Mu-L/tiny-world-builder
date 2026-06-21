@@ -978,7 +978,11 @@ export default class TinyWorldParty {
       const base = this.siteBase();
       if (base && typeof fetch === 'function') {
         try {
-          const res = await fetch(base + '/api/worlds?id=' + encodeURIComponent(worldId));
+          const token = this.env.WORLDS_SERVICE_TOKEN || '';
+          const res = await fetch(
+            base + '/api/worlds?id=' + encodeURIComponent(worldId),
+            token ? { headers: { 'x-worlds-token': token } } : undefined,
+          );
           if (res.ok) {
             const body = await res.json();
             if (body && body.world) {
@@ -987,7 +991,11 @@ export default class TinyWorldParty {
         const rate = this.world.taxPercent > 1 ? this.world.taxPercent / 100 : this.world.taxPercent;
         this.world.taxPercent = Math.round(clampTaxRate(rate, DEFAULT_ECONOMY_POLICY) * 100);
       }
-              if (body.world.data) data = body.world.data;
+              if (body.world.data) {
+                data = Object.assign({}, body.world.data, {
+                  gridSize: body.world.data.gridSize || body.world.gridSize || 8,
+                });
+              }
             }
           }
         } catch (_) { /* fall back to an empty walkable world */ }

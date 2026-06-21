@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { getAuthUser } from './lib/auth.mjs';
 import { getSql, isDatabaseUnavailable, isMissingRelations } from './lib/db.mjs';
 import { corsResponse, errorResponse, jsonResponse, readJson, sameOriginWriteGuard } from './lib/http.mjs';
@@ -17,6 +18,18 @@ const isMissingWorldSchema = (err) => isMissingRelations(err, WORLD_RELATIONS);
 
 function joinSecret() {
   return process.env.WORLDS_JOIN_SECRET || process.env.WORLDS_SERVICE_TOKEN || '';
+}
+
+function constantTimeEqual(a, b) {
+  const left = Buffer.from(String(a || ''), 'utf8');
+  const right = Buffer.from(String(b || ''), 'utf8');
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function isWorldServiceRequest(request) {
+  const serviceToken = process.env.WORLDS_SERVICE_TOKEN || '';
+  const provided = request.headers.get('x-worlds-token') || '';
+  return !!serviceToken && constantTimeEqual(provided, serviceToken);
 }
 
 async function loadEconomy(sql) {
@@ -71,6 +84,7 @@ export default async function worldsFunction(request) {
     // Browsing the universe is account-gated; writes require auth too.
     const user = await getAuthUser(request);
     const profile = (user && user.id) ? await ensureProfile(user) : null;
+    const isWorldService = isWorldServiceRequest(request);
     // World admin: a small email allowlist may inspect/administer worlds beyond
     // ownership. Live room editing is intentionally not part of this path.
     const isWorldAdmin = isWorldAdminEmail(user && user.email);
@@ -82,7 +96,7 @@ export default async function worldsFunction(request) {
       const economy = await loadEconomy(sql);
 
       if (worldId || worldSlug) {
-        if (!canAccessTinyverse) return errorResponse('Tinyverse access is invite-only', 403, origin);
+        if (!canAccessTinyverse && !isWorldService) return errorResponse('Tinyverse access is invite-only', 403, origin);
         const rows = worldId
           ? await sql`
               SELECT w.*, p.display_name AS owner_name
@@ -107,9 +121,9 @@ export default async function worldsFunction(request) {
         if (world.status === 'draft' && !isOwner && !isWorldAdmin) {
           return jsonResponse({ world: withLivePrice(worldDto(world), economy) }, origin);
         }
-        const includeData = world.status === 'published' || isOwner || isWorldAdmin;
+        const includeData = isWorldService || world.status === 'published' || isOwner || isWorldAdmin;
         const dto = withLivePrice(worldDto(world, { includeData }), economy);
-        let role = roleFor(world, profile && profile.id);
+        let role = isWorldService ? null : roleFor(world, profile && profile.id);
         // Community suspensions lock the player out of the game for their duration.
         let suspendedUntil = null;
         if (profile) {
@@ -122,7 +136,7 @@ export default async function worldsFunction(request) {
           }
         }
         let token = '';
-        if (role && joinSecret()) {
+        if (!isWorldService && role && joinSecret()) {
           token = signJoinToken({ w: dto.id, slug: dto.slug, p: profile ? Number(profile.id) : null, r: role }, joinSecret());
         }
         return jsonResponse({ world: dto, role, token, suspendedUntil, admin: isWorldAdmin, canAdminEdit: false, me: profile ? profileDto(profile) : null }, origin);

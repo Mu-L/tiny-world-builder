@@ -258,7 +258,8 @@ function computeTaxCooldown(lastTaxChangeAt) {
       try { window.__tinyworldIsHubWorld = (w && w.slug === 'tinyverse-nexus'); } catch (_) {}
       rememberActiveTinyverseSession(w && w.slug);
       selectionGateArrivalPending = true;
-      gridSize = w.gridSize || 8; taxPercent = w.taxPercent != null ? w.taxPercent : null;
+      gridSize = Math.max(1, Math.round(Number(w.gridSize || (w.data && w.data.gridSize) || 8)));
+      taxPercent = w.taxPercent != null ? w.taxPercent : null;
       taxCooldown = w.taxCooldown || (w.lastTaxChange ? computeTaxCooldown(w.lastTaxChange) : null);
       cells = w.data && Array.isArray(w.data.cells) ? w.data.cells : [];
       try { window.__twStargateAnimated = []; } catch (_) {}   // reset portal anim registry for the new world
