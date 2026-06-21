@@ -114,6 +114,11 @@ Raised, outlined square (per posType; same pattern for `.tool` and
   buttons. Because the theme blocks use `body.ui-theme-dark ... !important`,
   add matching `body.ui-theme-dark` active selectors after the generic selected
   block; a lower-specificity late rule is not enough.
+- If a component hard-codes button `background`, `color`, `border`, or local
+  category variables (for example launch/game-type, auth, account, or corner
+  chrome buttons), add a component-scoped `body.ui-theme-dark ...` rule after the
+  light rule. Do not rely on inherited `--ink`: `background: var(--ink)` plus
+  `color: #fff` becomes unreadable when dark mode flips `--ink` to light text.
 - Light-mode selected option chips/tabs in the selection and Layers properties
   panels are part of the same glass language. Keep their old translucent fills
   (`rgba(60,130,247,0.15)` for active chips, `rgba(23,107,235,0.14)` for active

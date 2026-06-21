@@ -602,6 +602,12 @@ if (!/modal\.hidden = false;/.test(welcomeDialogBody) || !/welcome-launch-open/.
 if (!/\.launch-modal\s*\{[\s\S]*align-items:\s*center/.test(cssRaw) || !/\.welcome-logo\s*\{[\s\S]*border-radius:\s*20px/.test(cssRaw) || !/\.welcome-mode-btn\s*\{[\s\S]*border:\s*1\.5px solid var\(--welcome-outline\)/.test(cssRaw) || !/\.welcome-credit\s*\{[\s\S]*justify-content:\s*center/.test(cssRaw)) {
   fail('welcome launcher must be a centered rounded logo dialog with block-style mode buttons and footer credit');
 }
+if (!/body\.ui-theme-dark \.welcome-mode-btn\s*\{[\s\S]*--welcome-outline:\s*#e8f1ff[\s\S]*color:\s*var\(--welcome-outline\) !important[\s\S]*background:\s*var\(--welcome-fill\) !important/.test(cssRaw) || !/body\.ui-theme-dark \.welcome-tinyverse\s*\{[\s\S]*--welcome-outline:\s*#a9c6ff/.test(cssRaw) || !/body\.ui-theme-dark \.welcome-battleworlds\s*\{[\s\S]*--welcome-outline:\s*#9eeaff/.test(cssRaw) || !/body\.ui-theme-dark \.welcome-build\s*\{[\s\S]*--welcome-outline:\s*#ffd08a/.test(cssRaw)) {
+  fail('welcome launcher game-type buttons must keep readable category text in dark mode');
+}
+if (!/body\.ui-theme-dark button\.corner-chrome-btn\s*\{[\s\S]*color:\s*#dcecff/.test(cssRaw) || !/body\.ui-theme-dark \.auth-btn\s*\{[\s\S]*background:\s*#dce7f8 !important[\s\S]*color:\s*#0e1724 !important/.test(cssRaw) || !/body\.ui-theme-dark \.auth-wallet-btn,\s*body\.ui-theme-dark \.auth-oauth-btn,\s*body\.ui-theme-dark \.auth-google-btn/.test(cssRaw) || !/body\.ui-theme-dark #account-modal \.tab-bar button/.test(cssRaw) || !/body\.ui-theme-dark #profile-photo-file::file-selector-button/.test(cssRaw)) {
+  fail('dark mode must explicitly restyle hard-coded auth, account, and corner button surfaces');
+}
 if (!fs.existsSync(path.join(root, 'assets', 'twlogo.png')) || !/if \[\[ -d assets \]\]/.test(publishRaw) || !/\$DIST\/assets/.test(publishRaw)) {
   fail('welcome launcher logo must be shipped through the assets publish path');
 }

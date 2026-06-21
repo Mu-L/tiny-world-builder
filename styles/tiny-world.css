@@ -1338,12 +1338,23 @@
   }
   .btn:hover { background: rgba(255, 255, 255, 0.55); }
   .btn:active { transform: translateY(1px); }
+  body.ui-theme-dark .btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+  }
   .btn.on {
     background: rgba(255, 255, 255, 0.78);
     border-color: rgba(255, 255, 255, 0.6);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.9) inset,
       0 1px 2px rgba(20, 30, 50, 0.06);
+  }
+  body.ui-theme-dark .btn.on {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--ink);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 1px 2px rgba(0, 0, 0, 0.32);
   }
   .btn.on::before {
     content: '●';
@@ -1769,6 +1780,19 @@
     stroke-linejoin: round;
   }
   .corner-chrome-btn[hidden] { display: none; }
+  body.ui-theme-dark button.corner-chrome-btn {
+    background: rgba(34, 41, 58, 0.88);
+    border-color: #dcecff;
+    color: #dcecff;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.20),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.24),
+      0 2px 5px -2px rgba(0, 0, 0, 0.58);
+  }
+  body.ui-theme-dark .corner-chrome-btn:hover {
+    background: rgba(48, 58, 80, 0.92);
+    color: #f4f7ff;
+  }
 
   button.sound-icon {
     position: fixed;
@@ -7749,6 +7773,64 @@
   body.ui-theme-dark .welcome-logo {
     background: #8ccaff;
   }
+  body.ui-theme-dark .welcome-mode-btn {
+    --welcome-outline: #e8f1ff;
+    --welcome-fill: rgba(33, 42, 60, 0.94);
+    --welcome-hover-fill: rgba(44, 55, 76, 0.98);
+    --welcome-bevel: rgba(0, 0, 0, 0.28);
+    color: var(--welcome-outline) !important;
+    background: var(--welcome-fill) !important;
+    border-color: var(--welcome-outline) !important;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.20),
+      inset 0 -4px 0 var(--welcome-bevel),
+      0 4px 10px -4px rgba(0, 0, 0, 0.62) !important;
+  }
+  body.ui-theme-dark .welcome-mode-btn:hover {
+    background: var(--welcome-hover-fill) !important;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.24),
+      inset 0 -4px 0 var(--welcome-bevel),
+      0 8px 14px -8px rgba(0, 0, 0, 0.72) !important;
+  }
+  body.ui-theme-dark .welcome-mode-btn:focus-visible {
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.24),
+      inset 0 -4px 0 var(--welcome-bevel),
+      0 0 0 3px rgba(8, 12, 18, 0.82),
+      0 0 0 6px rgba(169, 198, 255, 0.44) !important;
+  }
+  body.ui-theme-dark .welcome-mode-btn.is-soon {
+    opacity: 0.78;
+  }
+  body.ui-theme-dark .welcome-mode-btn.is-soon::after {
+    color: var(--welcome-outline) !important;
+    background: rgba(255, 255, 255, 0.12);
+  }
+  body.ui-theme-dark .welcome-tinyverse {
+    --welcome-outline: #a9c6ff;
+    --welcome-fill: rgba(34, 54, 95, 0.94);
+    --welcome-hover-fill: rgba(46, 70, 116, 0.98);
+    --welcome-bevel: rgba(0, 0, 0, 0.30);
+  }
+  body.ui-theme-dark .welcome-battleworlds {
+    --welcome-outline: #9eeaff;
+    --welcome-fill: rgba(22, 68, 88, 0.94);
+    --welcome-hover-fill: rgba(28, 86, 112, 0.98);
+    --welcome-bevel: rgba(0, 0, 0, 0.30);
+  }
+  body.ui-theme-dark .welcome-build {
+    --welcome-outline: #ffd08a;
+    --welcome-fill: rgba(86, 54, 24, 0.94);
+    --welcome-hover-fill: rgba(112, 70, 30, 0.98);
+    --welcome-bevel: rgba(0, 0, 0, 0.30);
+  }
+  body.ui-theme-dark .welcome-play {
+    --welcome-outline: #baf38a;
+    --welcome-fill: rgba(44, 74, 28, 0.94);
+    --welcome-hover-fill: rgba(56, 94, 34, 0.98);
+    --welcome-bevel: rgba(0, 0, 0, 0.30);
+  }
   body.ui-theme-dark .welcome-credit {
     color: rgba(244, 247, 255, 0.76);
   }
@@ -7960,6 +8042,36 @@
   .auth-google-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
   .auth-oauth-btn[hidden] { display: none; }
   .auth-oauth-section[hidden] { display: none; }
+  body.ui-theme-dark .auth-btn {
+    background: #dce7f8 !important;
+    color: #0e1724 !important;
+    border: 1px solid rgba(220, 231, 248, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 8px 18px -12px rgba(0, 0, 0, 0.72);
+  }
+  body.ui-theme-dark .auth-link {
+    color: #a9c6ff;
+  }
+  body.ui-theme-dark .auth-link:hover {
+    color: #d4e2ff;
+  }
+  body.ui-theme-dark .auth-wallet-btn,
+  body.ui-theme-dark .auth-oauth-btn,
+  body.ui-theme-dark .auth-google-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #f4f7ff !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.20);
+  }
+  body.ui-theme-dark .auth-wallet-btn:hover,
+  body.ui-theme-dark .auth-oauth-btn:hover,
+  body.ui-theme-dark .auth-google-btn:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+  }
 
   #cloud-layer {
     position: fixed;
@@ -8364,6 +8476,60 @@
     box-shadow:
       inset 0 0 0 1.5px rgba(255, 255, 255, 0.92),
       inset 0 -3px 0 rgba(47, 59, 87, 0.18);
+  }
+  body.ui-theme-dark .wallet-summary,
+  body.ui-theme-dark .players-stat {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  body.ui-theme-dark .api-key-reveal {
+    background: rgba(255, 208, 138, 0.12);
+    border-color: rgba(255, 208, 138, 0.32);
+    color: #ffe0ac;
+  }
+  body.ui-theme-dark .api-key-reveal strong {
+    color: #ffd08a;
+  }
+  body.ui-theme-dark #account-modal .modal-close,
+  body.ui-theme-dark #account-modal .tab-bar button,
+  body.ui-theme-dark #profile-photo-clear {
+    background: rgba(255, 255, 255, 0.08);
+    color: #dcecff;
+    border-color: #dcecff;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.16),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.24),
+      0 2px 5px -2px rgba(0, 0, 0, 0.58);
+  }
+  body.ui-theme-dark #account-modal .modal-close:hover,
+  body.ui-theme-dark #account-modal .tab-bar button:hover,
+  body.ui-theme-dark #profile-photo-clear:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4f7ff;
+  }
+  body.ui-theme-dark #account-modal .tab-bar button.active,
+  body.ui-theme-dark #profile-photo-file::file-selector-button {
+    background: linear-gradient(180deg, rgba(169, 198, 255, 0.34), rgba(88, 124, 190, 0.24));
+    color: #dcecff;
+    border-color: #a9c6ff;
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.20),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.24),
+      0 0 0 2px rgba(84, 137, 230, 0.34);
+  }
+  body.ui-theme-dark #account-modal .profile-section label {
+    color: rgba(226, 232, 242, 0.82);
+  }
+  body.ui-theme-dark #account-modal .profile-section input[type="text"],
+  body.ui-theme-dark #account-modal .profile-section input[type="url"],
+  body.ui-theme-dark #account-modal .profile-section textarea,
+  body.ui-theme-dark #profile-photo-file {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f7ff;
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.18);
   }
   .profile-avatar-preview {
     width: 72px; height: 72px; border-radius: 50%;
