@@ -66,29 +66,6 @@ function buildRichWorld(a) {
   const occupied = new Set();
   const cells = [];
 
-  // The Nexus is a pure through-port: a clean grass platform with stargates
-  // arranged evenly around the PERIMETER edges, each labelled with its island.
-  if (a.isHub) {
-    const dests = ARCHETYPES.filter(x => !x.isHub).map(x => ({ slug: x.slug, name: x.name }));
-    const inset = 2, lo = inset, hi = g - 1 - inset;
-    const ring = [];
-    for (let x = lo; x <= hi; x++) ring.push([x, lo]);
-    for (let z = lo + 1; z <= hi; z++) ring.push([hi, z]);
-    for (let x = hi - 1; x >= lo; x--) ring.push([x, hi]);
-    for (let z = hi - 1; z > lo; z--) ring.push([lo, z]);
-    const perim = ring.length, n = dests.length;
-    for (let i = 0; i < n; i++) {
-      const [x, z] = ring[Math.round(i * perim / n) % perim];
-      cells.push({ x, z, terrain: 'grass', kind: 'stargate', dest: dests[i].slug, label: dests[i].name });
-    }
-    const tile = g * g;
-    return {
-      slug: a.slug, name: a.name, status: 'published', kind: 'starter',
-      grid: g, tile, stone: 0, grass: tile, water: 0, price: 0,
-      data: { v: 4, gridSize: g, cells },
-    };
-  }
-
   // Big water bodies for fishing (rich)
   for (const size of a.water) {
     const cx = Math.floor(rng() * g), cz = Math.floor(rng() * g);
@@ -161,7 +138,6 @@ function buildRichWorld(a) {
 // All published and dense with resources + artifacts for immediate MMO play
 // (harvest, GOLD, tax, interest testing).
 const ARCHETYPES = [
-  { slug: "tinyverse-nexus", name: "Tinyverse Nexus (Hub)", grid: 20, water: [], stone: [], crops: 0, trees: 0, artifacts: 0, isHub: true },
   // Fishing heavy + artifacts
   { slug: 'tidewater-bay', name: 'Tidewater Bay', grid: 20, water: [55, 28, 14], stone: [6], crops: 22, trees: 8, artifacts: 18 },
   { slug: 'coral-reef', name: 'Coral Reef', grid: 18, water: [62, 19], stone: [5], crops: 14, trees: 7, artifacts: 14 },

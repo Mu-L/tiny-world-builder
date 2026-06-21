@@ -185,6 +185,10 @@ defaults — sets the welcome shot for new users.
   builder state through `WS.restoreFreeform()`, and opens the picker overlay.
   Do not hide picker navigation inside minimap or teardown helpers; that has
   previously exposed legacy multi-gate selector boards.
+- Do not add physical world-selection stargates to island payloads or previews.
+  The `/api/worlds` normalization and the client universe overlay should strip
+  legacy stargate cells from island data before rendering/entering; the world
+  picker is UI chrome, not an island board.
 - `tinyworld:features:cluso` — legacy Cluso flag; no app runtime path reads this
   key. The Cluso embed is now injected local-dev-only by `tools/dev-server.js`
   (see tinyworld-single-file SKILL), not gated by this key.

@@ -14,7 +14,6 @@
   
     const WS = (window.__tinyworldWorlds = window.__tinyworldWorlds || {});
     const TINYVERSE_HUB_SLUG = 'tinyverse-nexus';
-    const WORLD_SELECTION_GATE_DEST = '__world-picker';
     const ACTIVE_TINYVERSE_LS = 'tinyworld:worlds.activeTinyverse.v1';
   
     function api(path, method, body) {
@@ -39,8 +38,6 @@
     function normalizeWorldSelectionGateData(data, gridSizeHint) {
       const src = data && typeof data === 'object' ? data : { v: 4, cells: [] };
       const gridSize = Math.max(1, Math.round(Number(src.gridSize || gridSizeHint) || 8));
-      const cx = Math.floor(gridSize / 2);
-      const cz = Math.floor(gridSize / 2);
       const sourceCells = Array.isArray(src.cells) ? src.cells : [];
       const nextCells = [];
       sourceCells.forEach(cell => {
@@ -49,17 +46,13 @@
         const z = Math.round(Number(Array.isArray(cell) ? cell[1] : cell.z));
         const kind = Array.isArray(cell) ? cell[3] : cell.kind;
         if (!Number.isFinite(x) || !Number.isFinite(z)) return;
-        if (kind === 'stargate') return;
-        if (x === cx && z === cz) return;
+        if (kind === 'stargate') {
+          // World selection is UI chrome now; strip legacy physical gates.
+          const terrain = (Array.isArray(cell) ? cell[2] : cell.terrain) || 'grass';
+          if (terrain && terrain !== 'grass') nextCells.push(Array.isArray(cell) ? [x, z, terrain] : { x, z, terrain });
+          return;
+        }
         nextCells.push(cell);
-      });
-      nextCells.push({
-        x: cx,
-        z: cz,
-        terrain: 'grass',
-        kind: 'stargate',
-        dest: WORLD_SELECTION_GATE_DEST,
-        label: 'Worlds',
       });
       return Object.assign({}, src, { v: src.v || 4, gridSize, cells: nextCells });
     }

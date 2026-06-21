@@ -464,7 +464,7 @@ test('signed world join loads the full 20x20 world through the service token', a
         status: 'published',
         gridSize: 20,
         taxPercent: 0,
-        data: { v: 4, gridSize: 20, cells: [[10, 10, 'grass', 'stargate'], [19, 19, 'stone']] },
+        data: { v: 4, gridSize: 20, cells: [[19, 19, 'stone']] },
       },
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
@@ -477,8 +477,10 @@ test('signed world join loads the full 20x20 world through the service token', a
     assert.ok(party.worldState.grassCells.includes('18,18'), '20x20 walk grid includes cells beyond 8x8');
     const state = player.received.find(m => m.type === 'world.state');
     assert.equal(state.gridSize, 20);
-    assert.equal(state.you.x, 10);
-    assert.equal(state.you.z, 10);
+    assert.ok(Number.isInteger(state.you.x));
+    assert.ok(Number.isInteger(state.you.z));
+    assert.ok(state.you.x >= 0 && state.you.x < 20);
+    assert.ok(state.you.z >= 0 && state.you.z < 20);
     assert.equal(state.you.hearts, HEART_MAX);
     assert.equal(state.you.role, 'play');
   } finally {
@@ -582,26 +584,23 @@ test('worldPreview emits sparse terrain/kind tuples for the card minimap', () =>
   assert.equal(worldPreview({ cells: [] }).length, 0);
 });
 
-test('normalizeWorldSelectionGateData enforces one center picker stargate', () => {
+test('normalizeWorldSelectionGateData strips legacy stargates without creating picker gates', () => {
   const normalized = normalizeWorldSelectionGateData({
     v: 4, gridSize: 6,
     cells: [
       { x: 0, z: 0, terrain: 'grass', kind: 'stargate', dest: 'old-world' },
+      { x: 1, z: 1, terrain: 'stone', kind: 'stargate', dest: 'old-world' },
+      [2, 2, 'dirt', 'stargate', undefined, '__world-picker'],
       { x: 3, z: 3, terrain: 'stone', kind: 'rock' },
       { x: 4, z: 4, terrain: 'water' },
     ],
   });
-  const gates = normalized.cells.filter(c => c && c.kind === 'stargate');
-  assert.equal(gates.length, 1);
-  assert.deepEqual(gates[0], {
-    x: 3,
-    z: 3,
-    terrain: 'grass',
-    kind: 'stargate',
-    dest: '__world-picker',
-    label: 'Worlds',
-  });
+  const gates = normalized.cells.filter(c => c && (Array.isArray(c) ? c[3] : c.kind) === 'stargate');
+  assert.equal(gates.length, 0);
   assert.equal(normalized.cells.some(c => c && c.x === 0 && c.z === 0), false, 'old stargate removed');
+  assert.equal(normalized.cells.some(c => c && c.x === 1 && c.z === 1 && c.terrain === 'stone' && !c.kind), true, 'non-grass stargate terrain stays');
+  assert.equal(normalized.cells.some(c => Array.isArray(c) && c[0] === 2 && c[1] === 2 && c[2] === 'dirt' && !c[3]), true, 'array stargate terrain stays without kind');
+  assert.equal(normalized.cells.some(c => c && c.x === 3 && c.z === 3 && c.kind === 'rock'), true, 'center non-gate object stays');
   assert.equal(normalized.cells.some(c => c && c.x === 4 && c.z === 4 && c.terrain === 'water'), true, 'unrelated terrain stays');
 });
 

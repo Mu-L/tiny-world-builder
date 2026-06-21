@@ -12,7 +12,6 @@ export const WORLD_RESOURCES = ['fish', 'meat', 'plants', 'ore'];
 export const WORLD_STATUSES = ['unclaimed', 'draft', 'published'];
 export const MAX_WORLD_NAME = 48;
 export const TINYVERSE_HUB_SLUG = 'tinyverse-nexus';
-export const WORLD_SELECTION_GATE_DEST = '__world-picker';
 
 function worldCellX(cell) { return Array.isArray(cell) ? cell[0] : (cell && cell.x); }
 function worldCellZ(cell) { return Array.isArray(cell) ? cell[1] : (cell && cell.z); }
@@ -21,8 +20,6 @@ function worldCellKind(cell) { return Array.isArray(cell) ? cell[3] : (cell && c
 export function normalizeWorldSelectionGateData(data, gridSizeHint) {
   const src = data && typeof data === 'object' ? data : { v: 4, cells: [] };
   const gridSize = Math.max(1, Math.round(Number(src.gridSize || gridSizeHint) || 8));
-  const cx = Math.floor(gridSize / 2);
-  const cz = Math.floor(gridSize / 2);
   const cells = Array.isArray(src.cells) ? src.cells : [];
   const nextCells = [];
 
@@ -30,19 +27,14 @@ export function normalizeWorldSelectionGateData(data, gridSizeHint) {
     const x = Math.round(Number(worldCellX(cell)));
     const z = Math.round(Number(worldCellZ(cell)));
     if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
-    if (worldCellKind(cell) === 'stargate') continue;
-    if (x === cx && z === cz) continue;
+    if (worldCellKind(cell) === 'stargate') {
+      // World selection is UI chrome now; strip legacy physical gates.
+      const terrain = (Array.isArray(cell) ? cell[2] : (cell && cell.terrain)) || 'grass';
+      if (terrain && terrain !== 'grass') nextCells.push(Array.isArray(cell) ? [x, z, terrain] : { x, z, terrain });
+      continue;
+    }
     nextCells.push(cell);
   }
-
-  nextCells.push({
-    x: cx,
-    z: cz,
-    terrain: 'grass',
-    kind: 'stargate',
-    dest: WORLD_SELECTION_GATE_DEST,
-    label: 'Worlds',
-  });
 
   return Object.assign({}, src, {
     v: src.v || 4,
