@@ -196,12 +196,15 @@
       </a>
     </section>
 
+    <!-- The content below is a fallback; scripts/latest-news.js replaces the
+         headline/summary at runtime with the newest entry from /news so the home
+         teaser always tracks the latest story. -->
     <section class="top-story-section" aria-label="Latest news">
-      <a class="top-story" href="/news" aria-label="Latest news: Sign in with Google">
+      <a class="top-story" href="/news" data-latest-news aria-label="Latest news">
         <span class="top-story-flag">Latest</span>
         <span class="top-story-body">
-          <span class="top-story-headline">Sign in with Google</span>
-          <span class="top-story-summary">Google sign-in is here, and the old email verification step is off, so getting into your account is quicker and more reliable.</span>
+          <span class="top-story-headline">We switched on the production line</span>
+          <span class="top-story-summary">An autonomous crew of AI agents now ships iterative updates to the game and site, around the clock, building toward WAVE 2.</span>
         </span>
         <svg class="top-story-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
       </a>
@@ -361,5 +364,6 @@
   <script src="scripts/landing-auth-chip.js" defer></script>
   <script src="scripts/landing-feed.js" defer></script>
   <script src="scripts/world-carousel.js" defer></script>
+  <script src="scripts/latest-news.js" defer></script>
 </body>
 </html>
