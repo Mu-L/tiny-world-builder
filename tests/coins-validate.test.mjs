@@ -4,7 +4,7 @@
 // live-DB rollback smoke test + integration plan, not unit tests.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCoinAmount, MAX_COIN_AMOUNT } from '../netlify/functions/lib/coins.mjs';
+import { validateCoinAmount, MAX_COIN_AMOUNT, isValidCoinRef } from '../netlify/functions/lib/coins.mjs';
 
 test('accepts positive integers within range', () => {
   assert.equal(validateCoinAmount(1), 1);
@@ -26,4 +26,15 @@ test('rejects non-integers and junk', () => {
   assert.equal(validateCoinAmount(undefined), null);
   assert.equal(validateCoinAmount(NaN), null);
   assert.equal(validateCoinAmount(Infinity), null);
+});
+
+test('coin refs must be non-empty, bounded, server-key-shaped (idempotency requires one)', () => {
+  assert.equal(isValidCoinRef('remix:42:1718000000'), true);
+  assert.equal(isValidCoinRef('a1b2c3d4'), true); // 8 chars min
+  assert.equal(isValidCoinRef('short'), false);   // < 8
+  assert.equal(isValidCoinRef(''), false);
+  assert.equal(isValidCoinRef(null), false);
+  assert.equal(isValidCoinRef(undefined), false);
+  assert.equal(isValidCoinRef('has spaces!'), false);
+  assert.equal(isValidCoinRef('x'.repeat(129)), false); // > 128
 });
