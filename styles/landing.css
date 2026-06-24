@@ -987,6 +987,159 @@ svg {
   }
 }
 
+/* ---- B: Prospector early-preview card in the right hero rail ---- */
+.hero-prospector {
+  position: absolute;
+  z-index: 3;
+  top: 92px;
+  right: max(28px, calc((100vw - 1200px) / 2));
+  width: 320px;
+  max-width: calc(100vw - 56px);
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 24px 60px -28px rgba(17, 27, 69, 0.5);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.hero-prospector-badge {
+  flex-shrink: 0;
+}
+.hero-prospector-badge svg {
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  image-rendering: pixelated;
+  box-shadow: inset 0 0 0 1px rgba(17, 27, 69, 0.12);
+}
+.hero-prospector-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.hero-prospector-tag {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a86a1f;
+  background: rgba(201, 162, 39, 0.14);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.hero-prospector-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #25304c;
+}
+.hero-prospector-copy strong { color: #a86a1f; }
+.hero-prospector-cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #155dd4;
+  text-decoration: none;
+}
+.hero-prospector-cta svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hero-prospector-cta:hover,
+.hero-prospector-cta:focus-visible { text-decoration: underline; }
+
+/* On narrower viewports the rail card overlaps the hero copy — hide it there;
+   the full-width strip (A) below still carries the campaign. */
+@media (max-width: 1100px) {
+  .hero-prospector { display: none; }
+}
+
+/* ---- A: Early-preview promo strip directly under the hero ---- */
+.preview-strip {
+  display: block;
+  padding: 0 max(28px, calc((100vw - 1200px) / 2));
+  margin: 6px 0 0;
+}
+.preview-strip-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.12), rgba(76, 134, 255, 0.10));
+  border: 1px solid rgba(201, 162, 39, 0.28);
+}
+.preview-strip-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.preview-strip-icon svg {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  image-rendering: pixelated;
+  box-shadow: inset 0 0 0 1px rgba(17, 27, 69, 0.12);
+}
+.preview-strip-copy {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #25304c;
+}
+.preview-strip-copy strong {
+  color: #a86a1f;
+  font-weight: 750;
+}
+.preview-strip-cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: #155dd4;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background 0.14s ease, transform 0.14s ease;
+}
+.preview-strip-cta svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.preview-strip-cta:hover,
+.preview-strip-cta:focus-visible {
+  background: #0f49ad;
+  transform: translateX(2px);
+}
+@media (max-width: 720px) {
+  .preview-strip-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+  }
+}
+
 .scroll-cue {
   position: absolute;
   left: 50%;
