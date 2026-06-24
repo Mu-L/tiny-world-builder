@@ -126,7 +126,6 @@ export default async function worldsFunction(request) {
       const economy = await loadEconomy(sql);
 
       if (worldId || worldSlug) {
-        if (!canAccessTinyverse && !isWorldService) return errorResponse('Tinyverse access is invite-only', 403, origin);
         const rows = worldId
           ? await sql`
               SELECT w.*, p.display_name AS owner_name, p.email AS owner_email
@@ -145,6 +144,11 @@ export default async function worldsFunction(request) {
         if (!rows.length) return errorResponse('World not found', 404, origin);
         const world = rows[0];
         if (world.slug === TINYVERSE_HUB_SLUG) return errorResponse('World not found', 404, origin);
+        // P early-access: published "early-preview" starter worlds are open to ANY signed-in
+        // player to enter + harvest. Requires a real (signed-in) profile — anonymous
+        // visitors can't even observe via a guessed slug. Everything else stays invite-only.
+        const isPublicStarter = !!profile && world.kind === 'starter' && world.status === 'published';
+        if (!canAccessTinyverse && !isWorldService && !isPublicStarter) return errorResponse('Tinyverse access is invite-only', 403, origin);
         const isOwner = profile && Number(world.owner_profile_id) === Number(profile.id);
         // Drafts are private to their owner, except a world admin can inspect
         // them for moderation/support. Multiplayer editing stays outside rooms.
@@ -178,16 +182,26 @@ export default async function worldsFunction(request) {
           perTileBase: String(economy.per_tile_base || '0'),
         } }, origin);
       }
-      if (!canAccessTinyverse) return errorResponse('Tinyverse access is invite-only', 403, origin);
-
-      const rows = await sql`
-        SELECT w.*, p.display_name AS owner_name, p.email AS owner_email
-        FROM worlds w
-        LEFT JOIN profiles p ON p.id = w.owner_profile_id
-        WHERE w.slug <> ${TINYVERSE_HUB_SLUG}
-        ORDER BY (w.kind = 'starter') DESC, w.id ASC
-        LIMIT 500
-      `;
+      // P early-access: non-allowlisted players see ONLY the published early-preview
+      // starter worlds (their public sandbox); the full tinyverse stays invite-only.
+      // ownerEmail is excluded from the dto by default, so the public list carries no PII.
+      const rows = canAccessTinyverse
+        ? await sql`
+            SELECT w.*, p.display_name AS owner_name, p.email AS owner_email
+            FROM worlds w
+            LEFT JOIN profiles p ON p.id = w.owner_profile_id
+            WHERE w.slug <> ${TINYVERSE_HUB_SLUG}
+            ORDER BY (w.kind = 'starter') DESC, w.id ASC
+            LIMIT 500
+          `
+        : await sql`
+            SELECT w.*, p.display_name AS owner_name
+            FROM worlds w
+            LEFT JOIN profiles p ON p.id = w.owner_profile_id
+            WHERE w.slug <> ${TINYVERSE_HUB_SLUG} AND w.kind = 'starter' AND w.status = 'published'
+            ORDER BY w.id ASC
+            LIMIT 100
+          `;
       const worlds = rows.map(r => {
         const dto = withLivePrice(worldDto(r), economy);
         // A small top-down preview for the card. Other players' private drafts
