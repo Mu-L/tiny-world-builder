@@ -316,8 +316,12 @@
         .catch(function () { showEmpty(); });
     }
 
-    // Wait for world-preview.js (loaded defer before this inline script runs,
-    // but rAF ensures TinyWorldPreview is available before any renderPreview call).
+    // This inline script runs during HTML parse (readyState === 'loading').
+    // DOMContentLoaded fires after all defer scripts (including world-preview.js),
+    // so window.TinyWorldPreview is guaranteed to be available when load() runs.
+    // Expose load on window as a test seam so the real loader can be called from
+    // the browser console (e.g. to inject a fetch mock and re-run the full path).
+    window._featuredLoad = load;
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', load);
     } else {
