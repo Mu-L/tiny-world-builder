@@ -193,3 +193,10 @@ Use this together with:
 - Shadows are visible but not noisy; no huge new shadow casters.
 - Toolbar thumbnail remains readable.
 - No material mutation leaks into other objects.
+
+## Procedural cow/sheep animation
+
+- Built-in cow/sheep meshes are created by `makeVoxelAnimal()` in `engine/world/09b-voxel-build-factories.js` and animated by `engine/world/70-animal-anim.js`.
+- Keep animal body/head/leg pivots live: set `userData.noVoxelBatch = true`, expose parts under `userData.anim`, and register with `window.__tinyworldRegisterAnimal(g)` after rendering.
+- Animal movement is cosmetic only. The grazer moves the rendered group around its home tile; do not mutate `world[x][z]` or multiplayer harvest/resource state from this animation.
+- When adding new animal poses, use local state inside the 70 module and preserve the `__tinyworldAnimalTick(t, dt)` hook from the main animation loop.

@@ -2410,7 +2410,8 @@
     const sheep = kind === 'sheep';
     const bodyMat = sheep ? M_ANIMAL.sheepWool : M_ANIMAL.cowWhite;
     const faceMat = sheep ? M_ANIMAL.sheepFace : M_ANIMAL.cowWhite;
-    // Body on its own pivot so it can bob gently while ambling.
+    const animalScale = sheep ? 0.70 : 0.80;
+    // Body on its own pivot so it can bob gently while ambling or settle down to rest.
     const body = new THREE.Group();
     g.add(body);
     vbox(body, sheep ? 0.34 : 0.42, sheep ? 0.24 : 0.26, sheep ? 0.22 : 0.24, 0, 0.22, 0, bodyMat);
@@ -2422,19 +2423,21 @@
     body.add(head);
     vbox(head, sheep ? 0.14 : 0.18, sheep ? 0.14 : 0.16, sheep ? 0.12 : 0.16, 0, 0, 0, faceMat);
     if (!sheep) vbox(head, 0.08, 0.08, 0.10, 0.12, -0.04, 0, M_ANIMAL.cowMuzzle);
-    // Legs hang from hip pivots so they swing fore/aft when walking. Order is
-    // front-left, front-right, back-left, back-right (consumed by 70-animal-anim).
+    // Legs hang from hip pivots so they can swing when walking and fold forward when
+    // the animal lowers its head to graze. Order is front-left, front-right,
+    // back-left, back-right (consumed by 70-animal-anim).
     const legs = [];
-    [[0.13, -0.08], [0.13, 0.08], [-0.13, -0.08], [-0.13, 0.08]].forEach(([x, z]) => {
+    [[0.13, -0.08, true], [0.13, 0.08, true], [-0.13, -0.08, false], [-0.13, 0.08, false]].forEach(([x, z, front]) => {
       const hip = new THREE.Group();
       hip.position.set(x, 0.14, z);
       g.add(hip);
       vbox(hip, 0.06, 0.14, 0.06, 0, -0.07, 0, M_ANIMAL.hoof);
-      legs.push(hip);
+      legs.push({ hip, front });
     });
+    g.scale.setScalar(animalScale);
     // noVoxelBatch keeps the pivots separate (batching would flatten them and kill the
     // animation); `anim` hands the moving parts to the per-frame grazer.
-    g.userData = { kind, animal: true, noVoxelBatch: true, anim: { body, head, legs } };
+    g.userData = { kind, animal: true, noVoxelBatch: true, anim: { body, head, legs, scale: animalScale } };
     castReceive(g);
     applyEditableObjectParts(g, opts);
     optimizeVoxelObjectGroup(g, { reason: 'voxel-animal' });
