@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { requireAuthUser } from './lib/auth.mjs';
-import { requireTinyverseAccess } from './lib/tinyverse-access.mjs';
+import { isTinyverseAccessEmail } from './lib/tinyverse-access.mjs';
 import { ensureProfile } from './lib/profiles.mjs';
 import { getSql, isDatabaseUnavailable, isMissingRelations } from './lib/db.mjs';
 import { corsResponse, errorResponse, jsonResponse, readJson, sameOriginWriteGuard } from './lib/http.mjs';
@@ -24,8 +24,9 @@ export default async function resourcesSell(request) {
 
   const auth = await requireAuthUser(request, origin);
   if (auth.response) return auth.response;
-  const tvGate = requireTinyverseAccess(auth.user, origin);
-  if (tvGate) return tvGate;
+  // P+O early-access: the sell path is PUBLIC (any signed-in player can sell resources
+  // harvested in the open preview worlds). Allowlisted accounts get a 2x payout multiplier
+  // (applied below). No tinyverse gate here.
 
   let body;
   try { body = await readJson(request); } catch (_) { return errorResponse('invalid-json', 400, origin); }
@@ -35,9 +36,13 @@ export default async function resourcesSell(request) {
 
   const { amounts, totalUnits, gold } = computeResourceSale(body && body.amounts);
   if (totalUnits <= 0 || gold <= 0) return errorResponse('nothing-to-sell', 400, origin);
-  // Bound a single sale to the coin credit cap so an oversized sale fails cleanly (400)
-  // rather than rolling back the transaction with an invalid-amount 500.
-  if (gold > MAX_COIN_AMOUNT) return errorResponse('sale-too-large', 400, origin);
+  // O — owner/allowlist 2x early-access multiplier on the sell payout; public earns base.
+  // Derived server-side from the verified email (never client-supplied).
+  const ownerTier = isTinyverseAccessEmail(auth.user && auth.user.email);
+  const creditedGold = ownerTier ? gold * 2 : gold;
+  // Bound the CREDITED (post-multiplier) amount to the coin cap so an oversized sale fails
+  // cleanly (400) rather than rolling back the transaction with an invalid-amount 500.
+  if (creditedGold > MAX_COIN_AMOUNT) return errorResponse('sale-too-large', 400, origin);
 
   // Fixed-length coin ref so a long key can never overflow the ref limit.
   const coinRef = 'sell:' + createHash('sha256').update(`${auth.user && auth.user.sub}:${idempotencyKey}`).digest('hex').slice(0, 48);
@@ -56,7 +61,7 @@ export default async function resourcesSell(request) {
       if (prior.length) {
         const p = prior[0];
         const sameBody = Number(p.fish) === amounts.fish && Number(p.meat) === amounts.meat
-          && Number(p.plants) === amounts.plants && Number(p.ore) === amounts.ore && Number(p.gold_credited) === gold;
+          && Number(p.plants) === amounts.plants && Number(p.ore) === amounts.ore && Number(p.gold_credited) === creditedGold;
         if (!sameBody) return { ok: false, reason: 'idempotency-key-reused' };
         return { ok: true, replayed: true, gold: Number(p.gold_credited) };
       }
@@ -75,13 +80,13 @@ export default async function resourcesSell(request) {
             plants = plants - ${amounts.plants}, ore = ore - ${amounts.ore}, updated_at = NOW()
         WHERE profile_id = ${buyerId}
       `;
-      const c = await credit({ profileId: buyerId, amount: gold, type: 'CREDIT', reason: 'resource-sale', referenceId: coinRef });
+      const c = await credit({ profileId: buyerId, amount: creditedGold, type: 'CREDIT', reason: ownerTier ? 'resource-sale:2x' : 'resource-sale', referenceId: coinRef });
       if (!c.ok) throw new Error('credit-failed:' + c.reason);
       await tx`
         INSERT INTO resource_sales (profile_id, fish, meat, plants, ore, gold_credited, idempotency_key)
-        VALUES (${buyerId}, ${amounts.fish}, ${amounts.meat}, ${amounts.plants}, ${amounts.ore}, ${gold}, ${idempotencyKey})
+        VALUES (${buyerId}, ${amounts.fish}, ${amounts.meat}, ${amounts.plants}, ${amounts.ore}, ${creditedGold}, ${idempotencyKey})
       `;
-      return { ok: true, gold, balance: c.balance, sold: amounts };
+      return { ok: true, gold: creditedGold, multiplier: ownerTier ? 2 : 1, balance: c.balance, sold: amounts };
     });
 
     if (!result.ok) {
