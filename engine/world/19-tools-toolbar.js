@@ -1974,7 +1974,8 @@
     if (t.mooring) return { cls: 'build', label: window.t('mode.connect.label'), sub: window.t('mode.connect.sub') };
     const variant = t.activeVariant && t.activeVariant.label ? ' · ' + t.activeVariant.label : '';
     const noun = t.terrain ? window.t('mode.painting') : window.t('mode.building');
-    return { cls: 'build', label: noun + ': ' + t.label + variant, sub: window.t('mode.build.sub') };
+    const brush = window.__tinyworldBrushModes && window.__tinyworldBrushModes.label ? ' · ' + window.__tinyworldBrushModes.label() : '';
+    return { cls: 'build', label: noun + ': ' + t.label + variant + brush, sub: window.t('mode.build.sub') };
   }
   function updateModeIndicator() {
     const el = document.getElementById('mode-indicator');

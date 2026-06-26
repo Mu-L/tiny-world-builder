@@ -1704,6 +1704,57 @@
   .btn.build-play-toggle .ic-play { display: none; }
   body.tw-play-mode .btn.build-play-toggle .ic-build { display: none; }
   body.tw-play-mode .btn.build-play-toggle .ic-play { display: block; }
+
+  .brush-mode-toolbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(42, 39, 34, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 8px 22px -16px rgba(42, 39, 34, 0.45);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+  }
+  .brush-mode-btn {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    border: 2px solid #9f7a2c;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.92), 0 3px 0 #6e511b, 0 8px 16px -10px rgba(42, 39, 34, 0.55);
+    background: linear-gradient(180deg, #fffdf5, #f4e4b6);
+    color: #7a5718;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+  .brush-mode-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #ffffff, #f8edc9);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95), 0 4px 0 #6e511b, 0 12px 18px -12px rgba(42, 39, 34, 0.58);
+  }
+  .brush-mode-btn.on {
+    background: linear-gradient(180deg, #fff3c1, #e8b94d);
+    color: #3b2b12;
+    transform: translateY(2px);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95), 0 1px 0 #6e511b, 0 6px 14px -12px rgba(42, 39, 34, 0.45);
+  }
+  .brush-mode-btn svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    fill: rgba(255, 255, 255, 0.82);
+    stroke: currentColor;
+    stroke-width: 2.35;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.65));
+  }
+  body.tw-play-mode .brush-mode-toolbar {
+    display: none;
+  }
   .file-input-proxy {
     position: fixed;
     left: -10000px;

@@ -461,7 +461,9 @@
   let pointerDown = null;     // {x, y}
   let lastPointer = null;
   let didDrag = false;
-  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw' | 'move-selection' | 'transform-gizmo' | 'engine-select' | 'mooring'
+  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw' | 'brush-shape' | 'move-selection' | 'transform-gizmo' | 'engine-select' | 'mooring'
+  let _brushMode = 'single';
+  let _brushDragState = null;
   let selectionDragAnchor = null;
   let selectionMoveDragLastCoord = null;
   let selectionMoveDragState = null;
@@ -495,6 +497,7 @@
     dragMode = null;
     worldHistoryMuted = false;
     transformGizmoDrag = null;
+    _brushCancelPreview();
     drawVisitedCells.clear();
     drawChangedWorldCoords.clear();
     drawLastWorldCoord = null;
@@ -727,6 +730,160 @@
     }
     drawLastWorldCoord = coord;
     return changed;
+  }
+
+  // -------- brush shape preview (single / line / rectangle) --------
+  // Line and rectangle brush modes are preview-first: drag paints only a
+  // holographic footprint, then commits through the normal applyToolToCell path
+  // on pointer-up. Single mode preserves the existing freehand paint behavior.
+  const _brushShapePreviewGroup = new THREE.Group();
+  _brushShapePreviewGroup.name = 'brush-shape-preview';
+  _brushShapePreviewGroup.visible = false;
+  xrWorldRoot.add(_brushShapePreviewGroup);
+
+  function _brushModeLabel(mode) {
+    if (mode === 'line') return 'Line';
+    if (mode === 'rect') return 'Rectangle';
+    return 'Single';
+  }
+
+  function _brushSetMode(mode) {
+    if (mode !== 'line' && mode !== 'rect') mode = 'single';
+    _brushMode = mode;
+    document.querySelectorAll('[data-brush-mode]').forEach(btn => {
+      const on = btn.getAttribute('data-brush-mode') === _brushMode;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if (typeof updateModeIndicator === 'function') updateModeIndicator();
+  }
+
+  function _brushInitToolbar() {
+    document.querySelectorAll('[data-brush-mode]').forEach(btn => {
+      btn.addEventListener('click', () => _brushSetMode(btn.getAttribute('data-brush-mode')));
+    });
+    _brushSetMode(_brushMode);
+  }
+
+  function _brushPathCells(a, b, mode) {
+    if (!a || !b) return [];
+    const ax = a.x + (a.boardX || 0) * GRID;
+    const az = a.z + (a.boardZ || 0) * GRID;
+    const bx = b.x + (b.boardX || 0) * GRID;
+    const bz = b.z + (b.boardZ || 0) * GRID;
+    const cells = [];
+    const seen = new Set();
+    function add(x, z) {
+      const key = x + ',' + z;
+      if (seen.has(key)) return;
+      seen.add(key);
+      cells.push({ x, z });
+    }
+    if (mode === 'rect') {
+      const minX = Math.min(ax, bx), maxX = Math.max(ax, bx);
+      const minZ = Math.min(az, bz), maxZ = Math.max(az, bz);
+      for (let x = minX; x <= maxX; x++) {
+        for (let z = minZ; z <= maxZ; z++) add(x, z);
+      }
+    } else {
+      const dx = bx - ax;
+      const dz = bz - az;
+      const steps = Math.max(Math.abs(dx), Math.abs(dz));
+      if (!steps) add(ax, az);
+      for (let i = 0; i <= steps; i++) {
+        add(Math.round(ax + dx * (i / steps)), Math.round(az + dz * (i / steps)));
+      }
+    }
+    return cells;
+  }
+
+  function _brushPreviewMaterial() {
+    const color = selectedTool && selectedTool.erase ? 0xff5f68 : (selectedTool && selectedTool.terrain ? 0x56d684 : 0x65b7ff);
+    return new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.34,
+      depthWrite: false,
+    });
+  }
+
+  function _brushClearPreview() {
+    const mats = _brushShapePreviewGroup.userData.previewMaterials || [];
+    _brushShapePreviewGroup.userData.previewMaterials = [];
+    while (_brushShapePreviewGroup.children.length) {
+      const child = _brushShapePreviewGroup.children.pop();
+      if (child.geometry) child.geometry.dispose();
+      if (child.parent) child.parent.remove(child);
+    }
+    mats.forEach(mat => { if (mat && mat.dispose) mat.dispose(); });
+    _brushShapePreviewGroup.visible = false;
+  }
+
+  function _brushDisplayPointForWorldCell(x, z, sourceHit) {
+    const hit = drawHitFromWorldCoord(x, z, sourceHit || currentHover || {});
+    return { hit, point: new THREE.Vector3(hit.worldX, hit.worldY, hit.worldZ) };
+  }
+
+  function _brushUpdatePreview(endHit) {
+    if (!_brushDragState || !endHit) return;
+    const cells = _brushPathCells(_brushDragState.startHit, endHit, _brushDragState.mode);
+    _brushDragState.endHit = endHit;
+    _brushDragState.cells = cells;
+    _brushClearPreview();
+    const mat = _brushPreviewMaterial();
+    _brushShapePreviewGroup.userData.previewMaterials = [mat];
+    cells.forEach(coord => {
+      const display = _brushDisplayPointForWorldCell(coord.x, coord.z, endHit);
+      const geom = new THREE.BoxGeometry(0.92, 0.1, 0.92);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.copy(display.point);
+      mesh.position.y += 0.08;
+      mesh.userData.placementPreviewGeometry = true;
+      _brushShapePreviewGroup.add(mesh);
+    });
+    _brushShapePreviewGroup.visible = cells.length > 0;
+  }
+
+  function _brushBeginPreview(startHit, mode) {
+    if (!startHit || mode === 'single') return false;
+    _brushDragState = { startHit, endHit: startHit, mode, cells: [] };
+    _brushUpdatePreview(startHit);
+    return true;
+  }
+
+  function _brushCommitPreview() {
+    if (!_brushDragState || !_brushDragState.cells || !_brushDragState.cells.length) return false;
+    const sourceHit = _brushDragState.endHit || _brushDragState.startHit;
+    const cells = _brushDragState.cells.slice();
+    drawVisitedCells.clear();
+    drawChangedWorldCoords.clear();
+    drawLastWorldCoord = null;
+    for (let i = 0; i < cells.length; i++) {
+      const coord = cells[i];
+      applyDrawToolToSingleHit(drawHitFromWorldCoord(coord.x, coord.z, sourceHit));
+    }
+    if (!(selectedTool && selectedTool.erase) && drawChangedWorldCoords.size && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
+      window.__tinyworldSelection.replaceWorldCoords(Array.from(drawChangedWorldCoords.values()));
+    }
+    return true;
+  }
+
+  function _brushCancelPreview() {
+    _brushDragState = null;
+    _brushClearPreview();
+  }
+
+  if (typeof window !== 'undefined') {
+    window.__tinyworldBrushModes = {
+      get mode() { return _brushMode; },
+      setMode: _brushSetMode,
+      label: () => _brushModeLabel(_brushMode),
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', _brushInitToolbar, { once: true });
+    } else {
+      _brushInitToolbar();
+    }
   }
 
   const selectionMovePreviewGroup = new THREE.Group();
@@ -1346,8 +1503,9 @@
 
     const pressHit = pickTile(e.clientX, e.clientY);
     const wantsDraw = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && isDrawablePlacementTool(selectedTool);
+    const wantsBrushShape = wantsDraw && _brushMode !== 'single' && pressHit;
     const wantsSelectionMove = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && selectedTool && selectedTool.select && isSelectedWorldHit(pressHit);
-    dragMode = wantsDraw ? 'draw' : wantsSelectionMove ? 'move-selection' : ((e.button === 2 || spaceDown) ? 'pan' : 'orbit');
+    dragMode = wantsBrushShape ? 'brush-shape' : wantsDraw ? 'draw' : wantsSelectionMove ? 'move-selection' : ((e.button === 2 || spaceDown) ? 'pan' : 'orbit');
     selectionMoveDragLastCoord = wantsSelectionMove ? drawWorldCoordForHit(pressHit) : null;
     selectionMoveDragState = wantsSelectionMove ? beginSelectionMoveDragPreview(selectionMoveDragLastCoord) : null;
     // Rectangle drag (Shift+drag):
@@ -1382,6 +1540,9 @@
     if (dragMode === 'draw') {
       const hit = pressHit;
       didDrag = !!applyDrawToolToHit(hit);
+    } else if (dragMode === 'brush-shape') {
+      didDrag = _brushBeginPreview(pressHit, _brushMode);
+      setHoverFromCell(pressHit);
     } else if (e.pointerType !== 'mouse') {
       updateHoverAt(e.clientX, e.clientY);
     }
@@ -1462,6 +1623,12 @@
           panCameraByPixels(ddx, ddy);
         } else if (dragMode === 'draw') {
           applyDrawToolToHit(pickTile(e.clientX, e.clientY));
+        } else if (dragMode === 'brush-shape') {
+          const hit = pickTile(e.clientX, e.clientY);
+          if (hit) {
+            setHoverFromCell(hit);
+            _brushUpdatePreview(hit);
+          }
         } else if (dragMode === 'select-area') {
           // Extend the marquee rectangle to the cell under the cursor.
           const hit = pickTile(e.clientX, e.clientY);
@@ -1678,7 +1845,10 @@
     // (Shift+click + shift+drag are handled by setRectangleSelection
     // in pointerdown/pointermove respectively.)
     if (activePointers.size === 0) {
-      if (dragMode === 'draw' && drawChangedWorldCoords.size && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
+      if (dragMode === 'brush-shape') {
+        _brushCommitPreview();
+        _brushCancelPreview();
+      } else if (dragMode === 'draw' && drawChangedWorldCoords.size && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
         window.__tinyworldSelection.replaceWorldCoords(Array.from(drawChangedWorldCoords.values()));
       }
       pointerDown = null;
@@ -1687,6 +1857,7 @@
       selectionDragAnchor = null;
       selectionMoveDragLastCoord = null;
       cancelSelectionMoveDragPreview();
+      _brushCancelPreview();
       drawVisitedCells.clear();
       drawChangedWorldCoords.clear();
       drawLastWorldCoord = null;
@@ -1717,6 +1888,7 @@
       pinchPrevMid = null;
       selectionMoveDragLastCoord = null;
       cancelSelectionMoveDragPreview();
+      _brushCancelPreview();
       drawVisitedCells.clear();
       drawChangedWorldCoords.clear();
       drawLastWorldCoord = null;
