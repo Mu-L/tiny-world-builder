@@ -753,16 +753,19 @@
     return mode === 'single' || mode === 'line' || mode === 'rect' || mode === 'fill' || mode === 'scatter';
   }
 
+  function _brushEnsureDrawableTool() {
+    if (_brushMode === 'single' || isDrawablePlacementTool(selectedTool) || !Array.isArray(TOOLS)) return;
+    const fallbackPaintTool = TOOLS.find(t => t.id === 'grass') || TOOLS.find(t => t.terrain || t.kind || t.erase);
+    if (fallbackPaintTool && typeof selectTool === 'function') selectTool(fallbackPaintTool);
+  }
+
   function _brushSetMode(mode) {
     if (!_brushModeValid(mode)) mode = 'single';
     _brushMode = mode;
     // Brush shapes are paint/build modifiers. If the user picks a drag-shape
-    // while still in Select, make the canvas actually paint instead of orbiting
-    // the island under the cursor.
-    if (_brushMode !== 'single' && selectedTool && selectedTool.select && Array.isArray(TOOLS)) {
-      const fallbackPaintTool = TOOLS.find(t => t.id === 'grass') || TOOLS.find(t => t.terrain || t.kind || t.erase);
-      if (fallbackPaintTool && typeof selectTool === 'function') selectTool(fallbackPaintTool);
-    }
+    // while on Select / Island / any non-paint tool, make the canvas actually
+    // paint instead of orbiting or grabbing island widgets under the cursor.
+    _brushEnsureDrawableTool();
     document.querySelectorAll('[data-brush-mode]').forEach(btn => {
       const on = btn.getAttribute('data-brush-mode') === _brushMode;
       btn.classList.toggle('on', on);
@@ -1585,7 +1588,12 @@
       return;
     }
 
-    const engineHit = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && !e.ctrlKey && mpEditAllowed()
+    if (_brushMode !== 'single') _brushEnsureDrawableTool();
+    const pressHit = pickTile(e.clientX, e.clientY);
+    const wantsDraw = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && isDrawablePlacementTool(selectedTool);
+    const wantsBrushShape = wantsDraw && _brushMode !== 'single' && pressHit;
+
+    const engineHit = !wantsBrushShape && e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && !e.ctrlKey && mpEditAllowed()
       ? pickEditableIslandEngine(e.clientX, e.clientY)
       : null;
     if (engineHit) {
@@ -1601,7 +1609,7 @@
       return;
     }
 
-    const pyramidHit = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && !e.ctrlKey && mpEditAllowed()
+    const pyramidHit = !wantsBrushShape && e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && !e.ctrlKey && mpEditAllowed()
       && typeof pickEditableIslandPyramid === 'function'
       ? pickEditableIslandPyramid(e.clientX, e.clientY)
       : null;
@@ -1618,10 +1626,7 @@
       return;
     }
 
-    const pressHit = pickTile(e.clientX, e.clientY);
-    const wantsDraw = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && isDrawablePlacementTool(selectedTool);
-    const wantsBrushShape = wantsDraw && _brushMode !== 'single' && pressHit;
-    const wantsSelectionMove = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && selectedTool && selectedTool.select && isSelectedWorldHit(pressHit);
+    const wantsSelectionMove = !wantsBrushShape && e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && mpEditAllowed() && selectedTool && selectedTool.select && isSelectedWorldHit(pressHit);
     dragMode = wantsBrushShape ? 'brush-shape' : wantsDraw ? 'draw' : wantsSelectionMove ? 'move-selection' : ((e.button === 2 || spaceDown) ? 'pan' : 'orbit');
     selectionMoveDragLastCoord = wantsSelectionMove ? drawWorldCoordForHit(pressHit) : null;
     selectionMoveDragState = wantsSelectionMove ? beginSelectionMoveDragPreview(selectionMoveDragLastCoord) : null;
@@ -1727,6 +1732,20 @@
     // hover update for mouse devices (touch hover handled on press)
     if (e.pointerType === 'mouse' || !pointerDown) {
       queueHoverUpdate(e.clientX, e.clientY);
+    }
+
+    if (pointerDown && dragMode === 'brush-shape') {
+      const hit = pickTile(e.clientX, e.clientY);
+      if (hit) {
+        setHoverFromCell(hit);
+        _brushUpdatePreview(hit);
+      }
+      const dx = e.clientX - pointerDown.x;
+      const dy = e.clientY - pointerDown.y;
+      if (!didDrag && Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) didDrag = true;
+      lastPointer = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+      return;
     }
 
     if (pointerDown) {
