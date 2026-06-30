@@ -38,3 +38,13 @@ test('Tinyverse access NEVER trusts the user-editable profiles.email (privilege 
   // The legitimate path still works: a verified allowlisted email grants access.
   assert.equal(canAccessTinyverse({ id: 'w', email: 'jason@bouncingfish.com' }, { email: 'unrelated@example.com' }), true);
 });
+
+test('Tinyverse access NEVER trusts the user-editable profiles.email (privilege escalation fix)', () => {
+  // A wallet user (empty verified email) cannot self-grant access by setting an
+  // allowlisted profiles.email, and an attacker with a non-allowlisted verified email
+  // cannot escalate via profiles.email either.
+  assert.equal(canAccessTinyverse({ id: 'w', email: '' }, { email: 'jason.kneen@gmail.com' }), false);
+  assert.equal(canAccessTinyverse({ id: 'w', email: 'attacker@example.com' }, { email: 'jason.kneen@gmail.com' }), false);
+  // The legitimate path still works: a verified allowlisted email grants access.
+  assert.equal(canAccessTinyverse({ id: 'w', email: 'jason.kneen@gmail.com' }, { email: 'unrelated@example.com' }), true);
+});
