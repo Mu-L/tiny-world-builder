@@ -216,6 +216,11 @@
   ],
   "feed": [
     {
+      "ts": "2026-07-29T08:07:42.813Z",
+      "kind": "tick",
+      "text": "Autonomous tick (safe scope): drafted news/tweet for \"production-line: tick drafts + dashboard refresh [skip ci]\" -> plans/production-line/drafts/2026-07-29T08-07-production-line-tick-drafts-dashboard-refresh-sk.md. No economy paths touched."
+    },
+    {
       "ts": "2026-07-29T07:12:22.116Z",
       "kind": "tick",
       "text": "Autonomous tick (safe scope): drafted news/tweet for \"production-line: tick drafts + dashboard refresh [skip ci]\" -> plans/production-line/drafts/2026-07-29T07-12-production-line-tick-drafts-dashboard-refresh-sk.md. No economy paths touched."
@@ -409,12 +414,7 @@
       "ts": "2026-07-27T11:24:56.660Z",
       "kind": "tick",
       "text": "Autonomous tick (safe scope): drafted news/tweet for \"CVE-2026-59873 security vulnerability (#106)\" -> plans/production-line/drafts/2026-07-27T11-24-cve-2026-59873-security-vulnerability-106.md. No economy paths touched."
-    },
-    {
-      "ts": "2026-07-27T09:27:20.786Z",
-      "kind": "tick",
-      "text": "Autonomous tick (safe scope): drafted news/tweet for \"production-line: tick drafts + dashboard refresh [skip ci]\" -> plans/production-line/drafts/2026-07-27T09-27-production-line-tick-drafts-dashboard-refresh-sk.md. No economy paths touched."
     }
   ],
-  "lastTick": "2026-07-29T07:12:22.116Z"
+  "lastTick": "2026-07-29T08:07:42.813Z"
 }
